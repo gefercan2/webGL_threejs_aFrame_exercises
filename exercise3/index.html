@@ -1,1 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Scene with WebGL</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #808080; /* Gray background */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+
+<body> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Scene, Camera, and Renderer Setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const coldBlueLight = new THREE.PointLight(0x0000ff, 1, 100); // Cold blue light
+        coldBlueLight.position.set(-10, 10, -10);
+        scene.add(coldBlueLight);
+	
+	const coldBlueLight2 = new THREE.PointLight(0x0100ff, 1, 100); // Cold blue light
+        coldBlueLight.position.set(-10, 8, -1);
+        scene.add(coldBlueLight2);
+
+        const warmYellowLight = new THREE.PointLight(0xffff00, 1, 100); // Warm yellow light
+        warmYellowLight.position.set(10, 10, 10);
+        scene.add(warmYellowLight);
+	
+	const warmYellowLight2 = new THREE.PointLight(0xf0ff0f, 1, 100); // Warm yellow light
+        warmYellowLight.position.set(10, -10, 10);
+        scene.add(warmYellowLight2);
+
+        // Central Black Sphere
+        const sphereGeometry = new THREE.SphereGeometry(11, 32, 32);
+        const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x01f101 });
+        const blackSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        scene.add(blackSphere);
+
+        // Rows of Colored Cubes
+        const colors = [0x0000ff, 0xff0000, 0xffa500]; // Blue, Red, Orange
+        const cubes = [];
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < 6; j++) {
+                const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+                const cubeMaterial = new THREE.MeshStandardMaterial({ color: colors[i-1] });
+                const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+
+                // Position cubes in a grid, offset by color layer in the Z-axis
+                cube.position.set(j - 2, 1 - i, -2 + i * 2); 
+                scene.add(cube);
+                cubes.push(cube);
+            }
+        }
+
+        // Camera Position
+        camera.position.z = 5;
+
+        // Orbit Controls for Interaction
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Update controls
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Adjust to Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
 
