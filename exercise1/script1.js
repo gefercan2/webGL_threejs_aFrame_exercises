@@ -1,4 +1,3 @@
- <script>
 
     // Setup scene, camera, and renderer
     const scene = new THREE.Scene();
@@ -61,4 +60,4 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-  </script>
+
