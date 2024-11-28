@@ -1,1 +1,12 @@
-
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
