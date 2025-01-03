@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Scene with Three.js</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/controls/PointerLockControls.js"></script>
+
+  <script>
+    // Set up scene, camera, and renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Add a horizontal plane
+    const planeGeometry = new THREE.PlaneGeometry(20, 10);
+    const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x = -Math.PI / 2;
+    scene.add(plane);
+
+    // Add vertical planes
+    const textureLoader = new THREE.TextureLoader();
+    const imageTexture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/4/42/Emperor_Charles_V_seated_%28Titian%29.jpg');
+    const material = new THREE.MeshBasicMaterial({ map: imageTexture });
+
+    for (let i = 0; i < 3; i++) {
+      const verticalGeometry = new THREE.PlaneGeometry(3, 5);
+      const verticalPlane = new THREE.Mesh(verticalGeometry, material);
+      verticalPlane.position.set(-6 + i * 6, 2.2,-6 + i * 3); // Adjust positions
+      scene.add(verticalPlane);
+    }
+
+    // Add lighting
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(5, 10, 5);
+    scene.add(light);
+
+    // Position the camera
+    camera.position.set(0, 2, 10);
+
+    // Movement controls
+    let moveForward = false;
+    let moveBackward = false;
+    let moveLeft = false;
+    let moveRight = false;
+
+    const onKeyDown = (event) => {
+      switch (event.key) {
+        case 'ArrowUp':
+          moveForward = true;
+          break;
+        case 'ArrowDown':
+          moveBackward = true;
+          break;
+        case 'ArrowLeft':
+          moveLeft = true;
+          break;
+        case 'ArrowRight':
+          moveRight = true;
+          break;
+      }
+    };
+
+    const onKeyUp = (event) => {
+      switch (event.key) {
+        case 'ArrowUp':
+          moveForward = false;
+          break;
+        case 'ArrowDown':
+          moveBackward = false;
+          break;
+        case 'ArrowLeft':
+          moveLeft = false;
+          break;
+        case 'ArrowRight':
+          moveRight = false;
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+
+    const clock = new THREE.Clock();
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const moveSpeed = 5 * delta;
+
+      if (moveForward) camera.position.z -= moveSpeed;
+      if (moveBackward) camera.position.z += moveSpeed;
+      if (moveLeft) camera.position.x -= moveSpeed;
+      if (moveRight) camera.position.x += moveSpeed;
+
+      renderer.render(scene, camera);
+    };
+
+    animate();
+  </script>
+</body>
+</html>
