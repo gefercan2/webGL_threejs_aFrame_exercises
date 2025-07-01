@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>VR Interface with A-Frame</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Assets (e.g., fonts, images, models) go here -->
+      <a-assets>
+        <a-asset-item id="font" src="https://cdn.aframe.io/fonts/mozillavr.fnt"></a-asset-item>
+      </a-assets>
+
+      <!-- Environment -->
+      <a-sky color="#ECECEC"></a-sky>
+      <a-plane rotation="-90 0 0" width="10" height="10" color="#7BC8A4"></a-plane>
+
+      <!-- Lights -->
+      <a-light type="ambient" color="#BBB"></a-light>
+      <a-light type="point" intensity="1" position="2 4 4"></a-light>
+
+      <!-- UI Panel -->
+      <a-plane position="0 2 -3" width="2" height="1" color="#FFF" material="opacity: 0.9">
+        <a-text value="Main Menu" color="#000" align="center" width="1.8" position="0 0.35 0.01"></a-text>
+
+        <!-- Interactive Button -->
+        <a-box position="-0.6 -0.1 0.01" depth="0.05" height="0.3" width="1"
+               color="#4CC3D9" class="clickable" button-action>
+          <a-text value="Start" color="#000" align="center" width="0.8" position="0 0 0.03"></a-text>
+        </a-box>
+
+        <a-box position="0.6 -0.1 0.01" depth="0.05" height="0.3" width="1"
+               color="#EF2D5E" class="clickable" button-action>
+          <a-text value="Exit" color="#000" align="center" width="0.8" position="0 0 0.03"></a-text>
+        </a-box>
+      </a-plane>
+
+      <!-- 3D Shapes -->
+      <a-sphere position="-1 1.5 -4" radius="0.5" color="#EF2D5E" class="clickable" log-click></a-sphere>
+      <a-box position="1 1.5 -4" color="#4CC3D9" class="clickable" log-click></a-box>
+
+      <!-- Camera + Cursor -->
+      <a-entity camera position="0 1.6 0" look-controls>
+        <a-cursor
+          color="black"
+          fuse="true"
+          fuse-timeout="1000"
+          geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+          material="color: black; shader: flat"
+        ></a-cursor>
+      </a-entity>
+    </a-scene>
+
+    <!-- JavaScript for interactivity -->
+    <script>
+      AFRAME.registerComponent('log-click', {
+        init: function () {
+          this.el.addEventListener('click', () => {
+            console.log('Clicked on', this.el.tagName);
+            this.el.setAttribute('color', '#'+Math.floor(Math.random()*16777215).toString(16));
+          });
+        }
+      });
+
+      AFRAME.registerComponent('button-action', {
+        init: function () {
+          this.el.addEventListener('click', () => {
+            const label = this.el.querySelector('a-text')?.getAttribute('value');
+            alert(`${label} button clicked!`);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
