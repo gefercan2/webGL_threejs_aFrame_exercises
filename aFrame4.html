@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>A-Frame Feature Showcase</title>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; } /* Remove default body margin and hide overflow */
+    </style>
+  </head>
+  <body>
+    <a-scene background="color: #ADD8E6"> <a-entity camera look-controls wasd-controls position="0 1.6 3">
+        <a-entity cursor="rayOrigin: mouse"
+                  position="0 0 -1"
+                  geometry="primitive: ring; radiusOuter: 0.012; radiusInner: 0.008;"
+                  material="color: white; shader: flat;">
+        </a-entity>
+      </a-entity>
+
+      <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#808000"></a-plane>
+
+      <a-entity id="basic-shapes-feature" position="-5 1.5 -5"></a-entity>
+
+      <a-entity id="image-textures-feature" position="0 1.5 -5"></a-entity>
+
+      <a-entity id="animations-feature" position="5 1.5 -5"></a-entity>
+
+      <a-entity id="gltf-models-feature" position="-5 1.5 0"></a-entity>
+
+      <a-entity id="interactivity-feature" position="0 1.5 0"></a-entity>
+
+    </a-scene>
+
+    <script>
+      /**
+       * Custom A-Frame Component: Billboard
+       * Makes an entity always face the camera, useful for floating text and UI.
+       */
+      AFRAME.registerComponent('billboard', {
+        init: function () {
+          // Get a reference to the camera entity
+          this.cameraEl = document.querySelector('[camera]');
+          if (!this.cameraEl) {
+            console.warn("Billboard component: Camera not found.");
+          }
+        },
+        tick: function () {
+          // In each frame, make the entity look at the camera's position
+          if (this.cameraEl) {
+            this.el.object3D.lookAt(this.cameraEl.object3D.position);
+          }
+        }
+      });
+
+      /**
+       * Custom A-Frame Component: Interactive Hover
+       * Changes an entity's color on mouse enter and mouse leave events.
+       */
+      AFRAME.registerComponent('interactive-hover', {
+        schema: {
+          hoverColor: {type: 'string', default: '#00FF00'}, // Color when hovered (green by default)
+          originalColor: {type: 'string', default: '#FF0000'} // Original color (red by default)
+        },
+        init: function () {
+          const el = this.el;
+          const data = this.data;
+
+          // Store the initial color of the element
+          el.setAttribute('material', 'color', data.originalColor);
+
+          // Event listener for mouse enter (hover in)
+          el.addEventListener('mouseenter', function () {
+            el.setAttribute('material', 'color', data.hoverColor);
+            console.log('Hovered over interactive object!'); // Console log for debugging
+          });
+
+          // Event listener for mouse leave (hover out)
+          el.addEventListener('mouseleave', function () {
+            el.setAttribute('material', 'color', data.originalColor);
+            console.log('Left interactive object.'); // Console log for debugging
+          });
+        }
+      });
+
+      /**
+       * Function to create a floating text element.
+       * @param {string} value - The text content to display.
+       * @param {string} [color='#FFFFFF'] - The color of the text.
+       * @param {number} [width=3] - The width of the text container for wrapping.
+       * @param {string} [align='center'] - The alignment of the text.
+       * @param {AFRAME.THREE.Vector3} [position={x:0, y:2, z:0}] - The local position of the text relative to its parent.
+       * @returns {AFRAME.Element} The created a-entity for the text.
+       */
+      function createFloatingText(value, color = '#FFFFFF', width = 3, align = 'center', position = {x:0, y:2, z:0}) {
+        const textEntity = document.createElement('a-entity');
+        textEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+        textEntity.setAttribute('text', {
+          value: value,
+          color: color,
+          width: width,
+          align: align
+        });
+        textEntity.setAttribute('billboard', ''); // Apply the custom billboard component
+        return textEntity;
+      }
+
+      /**
+       * Function to set up the Basic Shapes feature showcase.
+       * Demonstrates A-Frame's primitive geometries.
+       */
+      function setupBasicShapes() {
+        const parentEl = document.getElementById('basic-shapes-feature');
+
+        // Box primitive
+        const box = document.createElement('a-box');
+        box.setAttribute('position', '0 0.5 0');
+        box.setAttribute('color', '#4CC3D9'); // Cyan
+        parentEl.appendChild(box);
+
+        // Sphere primitive
+        const sphere = document.createElement('a-sphere');
+        sphere.setAttribute('position', '1.5 0.75 0');
+        sphere.setAttribute('radius', '0.75');
+        sphere.setAttribute('color', '#EF2D5E'); // Red
+        parentEl.appendChild(sphere);
+
+        // Cylinder primitive
+        const cylinder = document.createElement('a-cylinder');
+        cylinder.setAttribute('position', '-1.5 0.75 0');
+        cylinder.setAttribute('radius', '0.5');
+        cylinder.setAttribute('height', '1.5');
+        cylinder.setAttribute('color', '#FFC65D'); // Yellow
+        parentEl.appendChild(cylinder);
+
+        // Floating explanation text for basic shapes
+        const text = createFloatingText(
+          "Basic Shapes: These are A-Frame's fundamental building blocks, including boxes, spheres, and cylinders. You can easily define their size, color, and position to construct virtual environments.",
+          '#FFFFFF', 3.5
+        );
+        parentEl.appendChild(text);
+      }
+
+      /**
+       * Function to set up the Image Textures feature showcase.
+       * Demonstrates applying 2D images as textures onto 3D objects.
+       */
+      function setupImageTextures() {
+        const parentEl = document.getElementById('image-textures-feature');
+
+        // Box with image texture
+        const texturedBox = document.createElement('a-box');
+        texturedBox.setAttribute('position', '0 0.5 0');
+        texturedBox.setAttribute('src', 'https://aframe.io/aframe/examples/showcase/360-image-gallery/images/pano2.jpg'); // Example image URL
+        parentEl.appendChild(texturedBox);
+
+        // Plane with image texture
+        const texturedPlane = document.createElement('a-plane');
+        texturedPlane.setAttribute('position', '0 0.5 1.5');
+        texturedPlane.setAttribute('width', '2');
+        texturedPlane.setAttribute('height', '1');
+        texturedPlane.setAttribute('src', 'https://aframe.io/aframe/examples/showcase/360-image-gallery/images/pano1.jpg'); // Example image URL
+        parentEl.appendChild(texturedPlane);
+
+        // Floating explanation text for image textures
+        const text = createFloatingText(
+          "Image Textures: Apply images directly onto 3D objects to add realistic details, patterns, or scenes. This makes objects look far more complex and visually rich than simple colored surfaces.",
+          '#FFFFFF', 3.5
+        );
+        parentEl.appendChild(text);
+      }
+
+      /**
+       * Function to set up the Animations feature showcase.
+       * Demonstrates creating dynamic movement and transformations.
+       */
+      function setupAnimations() {
+        const parentEl = document.getElementById('animations-feature');
+
+        // Box with position animation
+        const animatedBox = document.createElement('a-box');
+        animatedBox.setAttribute('position', '0 0.5 0');
+        animatedBox.setAttribute('color', '#AA00FF'); // Purple
+        animatedBox.setAttribute('animation', {
+          property: 'position',      // Animate the 'position' property
+          to: '0 1.5 0',             // Animate to this position
+          dir: 'alternate',          // Animate back and forth
+          dur: 2000,                 // Duration of one cycle in milliseconds
+          loop: true                 // Loop the animation indefinitely
+        });
+        parentEl.appendChild(animatedBox);
+
+        // Sphere with rotation animation
+        const animatedSphere = document.createElement('a-sphere');
+        animatedSphere.setAttribute('position', '1.5 0.75 0');
+        animatedSphere.setAttribute('radius', '0.75');
+        animatedSphere.setAttribute('color', '#00FFFF'); // Aqua
+        animatedSphere.setAttribute('animation', {
+          property: 'rotation',      // Animate the 'rotation' property
+          to: '0 360 0',             // Animate to a full 360-degree rotation around Y-axis
+          dur: 3000,                 // Duration of one rotation
+          loop: true,                // Loop indefinitely
+          easing: 'linear'           // Consistent speed animation
+        });
+        parentEl.appendChild(animatedSphere);
+
+        // Floating explanation text for animations
+        const text = createFloatingText(
+          "Animations: Bring your VR scene to life with smooth, declarative animations. You can animate almost any property of an object, such as its position, rotation, or color, creating dynamic and engaging experiences.",
+          '#FFFFFF', 3.5
+        );
+        parentEl.appendChild(text);
+      }
+
+      /**
+       * Function to set up the 3D Models (glTF) feature showcase.
+       * Demonstrates loading complex 3D models.
+       */
+      function setupGltfModels() {
+        const parentEl = document.getElementById('gltf-models-feature');
+
+        // GLTF Model: A popular 3D model format
+        const gltfModel = document.createElement('a-gltf-model');
+        gltfModel.setAttribute('src', 'https://aframe.io/aframe/examples/assets/model/dragon/dragon.gltf'); // Example GLTF model URL
+        gltfModel.setAttribute('scale', '0.1 0.1 0.1'); // Scale down the model to fit
+        gltfModel.setAttribute('position', '0 0.5 0'); // Position it on the floor
+        parentEl.appendChild(gltfModel);
+
+        // Floating explanation text for 3D models
+        const text = createFloatingText(
+          "3D Models (glTF): Import complex 3D models created in tools like Blender or Maya using the glTF format. This allows for highly detailed objects and characters, greatly enriching your virtual world.",
+          '#FFFFFF', 3.5
+        );
+        parentEl.appendChild(text);
+      }
+
+      /**
+       * Function to set up the Interactivity feature showcase.
+       * Demonstrates basic user interaction using the cursor and custom components.
+       */
+      function setupInteractivity() {
+        const parentEl = document.getElementById('interactivity-feature');
+
+        // Interactive box that changes color on hover
+        const interactiveBox = document.createElement('a-box');
+        interactiveBox.setAttribute('position', '0 0.5 0');
+        // Apply the custom interactive-hover component with specific colors
+        interactiveBox.setAttribute('interactive-hover', 'originalColor: #FF0000; hoverColor: #00FF00');
+        parentEl.appendChild(interactiveBox);
+
+        // Floating explanation text for interactivity
+        const text = createFloatingText(
+          "Interactivity: Engage users by making objects respond to their actions. With A-Frame's cursor and event listeners, you can trigger animations, change properties, or navigate based on gaze or clicks.",
+          '#FFFFFF', 3.5
+        );
+        parentEl.appendChild(text);
+      }
+
+      // Initialize all feature showcases once the A-Frame scene is loaded
+      document.querySelector('a-scene').addEventListener('loaded', function () {
+        setupBasicShapes();
+        setupImageTextures();
+        setupAnimations();
+        setupGltfModels();
+        setupInteractivity();
+        console.log("A-Frame features loaded and initialized.");
+      });
+    </script>
+  </body>
+</html>
