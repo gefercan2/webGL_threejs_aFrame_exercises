@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A-Frame & Three.js Elements and Templates</title>
+
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Base font for the document */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Styling for code blocks to make them distinct and readable */
+        .code-block {
+            background-color: #1f2937; /* Dark gray background */
+            color: #f9fafb; /* Light text color */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto; /* Enable horizontal scrolling for long lines */
+            font-family: monospace; /* Monospaced font for code */
+            font-size: 0.875rem; /* text-sm */
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap; /* Wrap long lines of code */
+            word-break: break-all; /* Break words if they are too long */
+        }
+        /* Container for visual previews, adding a consistent look */
+        .preview-container {
+            border: 1px solid #e5e7eb; /* Light gray border */
+            border-radius: 0.5rem;
+            overflow: hidden; /* Hide anything overflowing the rounded corners */
+            background-color: #f9fafb; /* Light background for previews */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* Subtle shadow */
+            position: relative; /* Needed for absolute positioning of UI overlays */
+        }
+        /* Specific styling for A-Frame scene preview */
+        .aframe-scene-preview {
+            width: 100%;
+            height: 300px; /* Fixed height for A-Frame scene */
+            border-radius: 0.5rem; /* Apply rounded corners */
+        }
+        /* Specific styling for Three.js canvas preview */
+        .threejs-canvas-preview {
+            display: block; /* Remove extra space below the canvas */
+            width: 100%;
+            height: 300px; /* Fixed height for Three.js canvas */
+            border-radius: 0.5rem; /* Apply rounded corners */
+        }
+        /* Styling for the responsive UI overlay example */
+        .responsive-ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark overlay */
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            pointer-events: none; /* Allows clicks to pass through to the A-Frame scene */
+            z-index: 10; /* Ensure it's above the A-Frame scene */
+        }
+        /* Make buttons within the overlay clickable */
+        .responsive-ui-overlay button {
+            pointer-events: auto; /* Override parent's pointer-events: none */
+            background-color: #4f46e5; /* Indigo-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* Fully rounded button */
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s ease; /* Smooth hover effect */
+        }
+        .responsive-ui-overlay button:hover {
+            background-color: #4338ca; /* Darker indigo on hover */
+        }
+    </style>
+
+    <!-- A-Frame CDN: Core library for WebVR/AR experiences -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <!-- A-Frame Extras: Provides useful components like environment (optional) -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.2.0/dist/aframe-extras.min.js"></script>
+
+    <!-- Three.js CDN: Low-level 3D graphics library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js OrbitControls: Enables interactive camera movement with mouse -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Three.js GLTFLoader: Loader for glTF 3D models -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4 sm:p-6 md:p-8">
+
+    <!-- Main Container: Centers content and applies basic styling -->
+    <div class="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-6 sm:p-8 md:p-10">
+
+        <!-- Main Title of the Document -->
+        <h1 class="text-3xl sm:text-4xl font-bold text-center mb-8 text-indigo-700">
+            A-Frame & Three.js Elements and Templates
+        </h1>
+
+        <!-- Section for A-Frame Examples -->
+        <section class="mb-12">
+            <h2 class="text-2xl sm:text-3xl font-semibold mb-6 text-indigo-600 border-b pb-3">
+                A-Frame (WebVR/AR Framework)
+            </h2>
+
+            <p class="mb-8 text-gray-700">
+                A-Frame is an open-source web framework for building virtual reality (VR) and
+                augmented reality (AR) experiences. It's built on top of HTML and the DOM,
+                making it easy to get started with 3D and VR content using familiar web technologies.
+                It abstracts away much of the complexity of WebGL and Three.js.
+            </p>
+
+            <!-- Grid layout for A-Frame examples -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- A-Frame Basic Elements & Scene Setup -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col md:col-span-2">
+                    <h3 class="text-xl font-medium mb-4">Basic Elements & Scene Setup</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Preview (Click and drag to look around, use WASD to move):</p>
+                        <div class="preview-container">
+                            <!--
+                                A-Frame Scene: The root element for all VR content.
+                                'embedded' attribute prevents A-Frame from taking over the whole page.
+                            -->
+                            <a-scene class="aframe-scene-preview" embedded>
+                                <!--
+                                    Camera: Defines the user's viewpoint in the scene.
+                                    'look-controls' enables mouse/touch camera rotation.
+                                    'wasd-controls' enables movement with WASD keys.
+                                    'position' sets the initial camera location.
+                                -->
+                                <a-entity camera look-controls wasd-controls position="0 1.6 0">
+                                    <!--
+                                        Cursor: A visual indicator that appears at the center of the camera's view.
+                                        Useful for indicating what the user is looking at.
+                                    -->
+                                    <a-cursor></a-cursor>
+                                </a-entity>
+
+                                <!-- Basic Geometries (3D Primitives) -->
+                                <!-- Box: A cube or rectangular prism -->
+                                <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+                                <!-- Sphere: A round 3D object -->
+                                <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+                                <!-- Cylinder: A cylindrical object -->
+                                <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+                                <!-- Plane: A flat 2D surface in 3D space, often used as a ground -->
+                                <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+
+                                <!-- Sky: A large sphere that acts as the background, typically for skyboxes or solid colors -->
+                                <a-sky color="#ECECEC"></a-sky>
+
+                                <!-- Lights: Illuminate the scene. Without lights, objects will appear black. -->
+                                <!-- Ambient Light: Provides soft, omnidirectional lighting, no shadows -->
+                                <a-light type="ambient" color="#CCC"></a-light>
+                                <!-- Directional Light: Simulates light from a distant source (e.g., sun), casts shadows -->
+                                <a-light type="directional" color="#FFF" intensity="0.6" position="-1 1 1"></a-light>
+                            </a-scene>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- Include A-Frame CDN in your &lt;head&gt; --&gt;
+&lt;script src="https://aframe.io/releases/1.5.0/aframe.min.js"&gt;&lt;/script&gt;
+
+&lt;!-- A-Frame Scene: The root element for all VR content --&gt;
+&lt;a-scene embedded&gt;
+    &lt;!-- Camera: Defines the user's viewpoint --&gt;
+    &lt;a-entity camera look-controls wasd-controls position="0 1.6 0"&gt;
+        &lt;!-- Cursor: A visual indicator for interaction --&gt;
+        &lt;a-cursor&gt;&lt;/a-cursor&gt;
+    &lt;/a-entity&gt;
+
+    &lt;!-- Basic Geometries --&gt;
+    &lt;!-- Box: A cube or rectangular prism --&gt;
+    &lt;a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"&gt;&lt;/a-box&gt;
+    &lt;!-- Sphere: A round 3D object --&gt;
+    &lt;a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"&gt;&lt;/a-sphere&gt;
+    &lt;!-- Cylinder: A cylindrical object --&gt;
+    &lt;a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"&gt;&lt;/a-cylinder&gt;
+    &lt;!-- Plane: A flat 2D surface in 3D space --&gt;
+    &lt;a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"&gt;&lt;/a-plane&gt;
+
+    &lt;!-- Sky: A large sphere that acts as the background --&gt;
+    &lt;a-sky color="#ECECEC"&gt;&lt;/a-sky&gt;
+
+    &lt;!-- Lights: Illuminate the scene --&gt;
+    &lt;!-- Ambient Light: Provides soft, even lighting --&gt;
+    &lt;a-light type="ambient" color="#CCC"&gt;&lt;/a-light&gt;
+    &lt;!-- Directional Light: Simulates light from a distant source (e.g., sun) --&gt;
+    &lt;a-light type="directional" color="#FFF" intensity="0.6" position="-1 1 1"&gt;&lt;/a-light&gt;
+&lt;/a-scene&gt;</code></pre>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-gray-700">
+                        This example demonstrates how to set up a basic A-Frame scene (`a-scene`)
+                        and include fundamental 3D primitives like `a-box`, `a-sphere`, `a-cylinder`,
+                        and `a-plane`. The `a-sky` component sets the background color, and `a-light`
+                        elements provide illumination. The `a-entity camera` with `look-controls`
+                        and `wasd-controls` allows for desktop navigation, while `a-cursor` provides
+                        a visual indicator for interaction.
+                    </p>
+                </div>
+
+                <!-- A-Frame 360 Image -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col">
+                    <h3 class="text-xl font-medium mb-4">360 Image (Panorama)</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Description:</p>
+                        <p class="text-gray-700">
+                            The `a-sky` component is versatile and can be used to display 360-degree
+                            panoramic images. Simply set its `src` attribute to the URL of your
+                            equirectangular image. This creates an immersive background for your VR scene.
+                            The preview for this element is integrated into the main A-Frame scene above
+                            by changing the `a-sky` color.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- To display a 360 image, use &lt;a-sky&gt; with an image source. --&gt;
+&lt;!-- Replace 'your-360-image.jpg' with the URL of your equirectangular 360 image. --&gt;
+&lt;a-scene&gt;
+    &lt;!--
+        src: URL to your 360 equirectangular image.
+        Example: https://cdn.aframe.io/360-image-gallery/img/sechelt.jpg
+    --&gt;
+    &lt;a-sky src="https://cdn.aframe.io/360-image-gallery/img/sechelt.jpg"&gt;&lt;/a-sky&gt;
+    &lt;a-camera&gt;&lt;/a-camera&gt;
+&lt;/a-scene&gt;</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A-Frame 360 Video -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col">
+                    <h3 class="text-xl font-medium mb-4">360 Video</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Description:</p>
+                        <p class="text-gray-700">
+                            Similar to 360 images, `a-videosphere` allows you to embed 360-degree
+                            videos as the background. You typically define the video in `a-assets`
+                            and then reference it. Be aware of browser autoplay policies, which
+                            often require a user gesture (like a click) to start video playback.
+                            A live preview is not shown to avoid autoplay issues and scene conflicts.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- For 360 video, use &lt;a-videosphere&gt;. --&gt;
+&lt;!-- First, define your video asset within &lt;a-assets&gt; for preloading --&gt;
+&lt;a-assets&gt;
+    &lt;!--
+        id: Unique identifier for the video asset.
+        autoplay: Attempts to play video automatically (may be blocked by browsers).
+        loop: Loops the video playback.
+        src: URL to your 360 video file (e.g., MP4).
+    --&gt;
+    &lt;video id="my-360-video" autoplay loop="true" src="your-360-video.mp4"&gt;&lt;/video&gt;
+&lt;/a-assets&gt;
+
+&lt;a-scene&gt;
+    &lt;!-- Then, reference the video asset using its ID with &lt;a-videosphere&gt; --&gt;
+    &lt;a-videosphere src="#my-360-video"&gt;&lt;/a-videosphere&gt;
+    &lt;a-camera&gt;&lt;/a-camera&gt;
+&lt;/a-scene&gt;
+
+&lt;!-- Note: Autoplay requires user interaction in many browsers. --&gt;
+&lt;!-- You might need a button to start video playback on user click. --&gt;</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A-Frame Responsive UI (HTML Overlay) -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col md:col-span-2">
+                    <h3 class="text-xl font-medium mb-4">Responsive UI (HTML Overlay)</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Preview (Overlayed on A-Frame scene):</p>
+                        <div class="preview-container relative">
+                            <!-- A-Frame Scene for the background -->
+                            <a-scene class="aframe-scene-preview" embedded>
+                                <a-entity camera look-controls position="0 1.6 0"></a-entity>
+                                <a-box position="0 1 -3" color="#FF0000"></a-box>
+                                <a-sky color="#ADD8E6"></a-sky>
+                            </a-scene>
+                            <!-- HTML Overlay positioned absolutely on top of the scene -->
+                            <div class="responsive-ui-overlay">
+                                <div class="p-4 bg-black bg-opacity-70 rounded-lg text-center">
+                                    <p class="text-lg font-bold mb-2">Welcome to VR!</p>
+                                    <!-- Button within the overlay, made clickable via CSS -->
+                                    <button onclick="alert('Button Clicked! This is a standard JS alert, replace with custom modal if needed.')">Enter Experience</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- A-Frame Scene (as a base for the overlay) --&gt;
+&lt;div class="preview-container relative"&gt;
+    &lt;a-scene class="aframe-scene-preview" embedded&gt;
+        &lt;a-entity camera look-controls position="0 1.6 0"&gt;&lt;/a-entity&gt;
+        &lt;a-box position="0 1 -3" color="#FF0000"&gt;&lt;/a-box&gt;
+        &lt;a-sky color="#ADD8E6"&gt;&lt;/a-sky&gt;
+    &lt;/a-scene&gt;
+
+    &lt;!-- Responsive HTML Overlay --&gt;
+    &lt;div class="responsive-ui-overlay"&gt;
+        &lt;div class="p-4 bg-black bg-opacity-70 rounded-lg text-center"&gt;
+            &lt;p class="text-lg font-bold mb-2"&gt;Welcome to VR!&lt;/p&gt;
+            &lt;button onclick="console.log('Button Clicked!')"&gt;Enter Experience&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- Basic CSS for the overlay (add to your &lt;style&gt; block) --&gt;
+&lt;style&gt;
+    .responsive-ui-overlay {
+        position: absolute; /* Position relative to its parent .preview-container */
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center; /* Center horizontally */
+        align-items: center; /* Center vertically */
+        background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
+        color: white;
+        font-size: 1.5rem;
+        text-align: center;
+        pointer-events: none; /* By default, clicks pass through to the A-Frame scene */
+        z-index: 10; /* Ensure it's on top */
+    }
+    .responsive-ui-overlay button {
+        pointer-events: auto; /* Make the button itself clickable */
+        background-color: #4f46e5;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        cursor: pointer;
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+    .responsive-ui-overlay button:hover {
+        background-color: #4338ca;
+    }
+&lt;/style&gt;</code></pre>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-gray-700">
+                        While A-Frame has components for in-VR UI, a common and effective way
+                        to implement responsive UI (especially for pre-VR entry screens or 2D overlays)
+                        is to use standard HTML and CSS positioned on top of the A-Frame scene.
+                        This allows you to leverage all standard web development tools for UI.
+                        Using `pointer-events: none;` on the overlay allows interaction with the
+                        underlying A-Frame scene, while specific interactive elements (like buttons)
+                        can have `pointer-events: auto;` to be clickable.
+                    </p>
+                </div>
+
+                <!-- A-Frame Hand Tracking -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col">
+                    <h3 class="text-xl font-medium mb-4">Hand Tracking / Controllers</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Description:</p>
+                        <p class="text-gray-700">
+                            A-Frame provides built-in support for WebXR controllers and hand tracking.
+                            By adding `hand-controls` or specific controller components like
+                            `oculus-touch-controls` to your camera entity, A-Frame will automatically
+                            render the controllers and enable basic interactions. You can then add
+                            custom components (like the `clickable` example in the code) to make your 3D
+                            objects respond to controller events (e.g., `click`, `triggerdown`).
+                            This functionality requires a compatible VR headset and browser to fully experience.
+                            A live preview is not provided as it requires specific hardware.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- A-Frame Scene --&gt;
+&lt;a-scene&gt;
+    &lt;!--
+        Camera with default WebXR hand tracking/controllers.
+        A-Frame automatically detects and renders common VR controllers (e.g., Oculus Touch, Valve Index).
+        Add 'hand-controls' for both left and right hands.
+    --&gt;
+    &lt;a-entity camera="active: true"
+              hand-controls="hand: left"
+              hand-controls="hand: right"&gt;
+    &lt;/a-entity&gt;
+
+    &lt;!-- Alternatively, for specific controller models (e.g., Oculus Touch) --&gt;
+    &lt;!-- &lt;a-entity oculus-touch-controls="hand: left"&gt;&lt;/a-entity&gt; --&gt;
+    &lt;!-- &lt;a-entity oculus-touch-controls="hand: right"&gt;&lt;/a-entity&gt; --&gt;
+
+    &lt;!-- Add interactable objects for testing with controllers --&gt;
+    &lt;a-box position="0 1 -2" color="blue" clickable&gt;&lt;/a-box&gt;
+    &lt;a-sphere position="0.5 1.5 -2.5" color="green" clickable&gt;&lt;/a-sphere&gt;
+    &lt;a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"&gt;&lt;/a-plane&gt;
+    &lt;a-sky color="#ECECEC"&gt;&lt;/a-sky&gt;
+&lt;/a-scene&gt;
+
+&lt;!-- Example of a simple 'clickable' component for interaction --&gt;
+&lt;script&gt;
+    // Register a custom A-Frame component named 'clickable'
+    AFRAME.registerComponent('clickable', {
+        init: function () {
+            // Add an event listener for the 'click' event (triggered by cursor or controller)
+            this.el.addEventListener('click', function (evt) {
+                console.log('Clicked on:', evt.target.id || evt.target.tagName);
+                // Change the color of the clicked object randomly
+                evt.target.setAttribute('color', '#' + Math.floor(Math.random()*16777215).toString(16));
+            });
+        }
+    });
+&lt;/script&gt;</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A-Frame Model Viewer (GLTF) -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col">
+                    <h3 class="text-xl font-medium mb-4">3D Model Viewer (GLTF)</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Description:</p>
+                        <p class="text-gray-700">
+                            A-Frame makes it easy to load 3D models in the glTF format (`.gltf` or `.glb`)
+                            using the `gltf-model` component. It's recommended to define your model in
+                            `a-assets` for preloading and caching, which improves performance. This allows for
+                            complex 3D assets to be integrated into your VR scenes with minimal code.
+                            You can adjust its position, rotation, and scale just like any other A-Frame entity.
+                            A live preview is not provided as it relies on external model files.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- A-Frame Scene --&gt;
+&lt;a-scene&gt;
+    &lt;!-- Assets: Define your 3D model here for preloading --&gt;
+    &lt;a-assets&gt;
+        &lt;!--
+            id: Unique identifier for the asset.
+            src: URL to your glTF model file.
+            Example: A simple tree model from A-Frame's CDN.
+        --&gt;
+        &lt;a-asset-item id="tree-model" src="https://cdn.aframe.io/models/gltf/tree/tree.gltf"&gt;&lt;/a-asset-item&gt;
+    &lt;/a-assets&gt;
+
+    &lt;!-- Use the gltf-model component to load the model --&gt;
+    &lt;!--
+        src: References the asset by its ID (e.g., #tree-model).
+        position: Sets the model's position in 3D space.
+        scale: Adjusts the model's size.
+    --&gt;
+    &lt;a-gltf-model src="#tree-model" position="0 0 -3" scale="0.5 0.5 0.5"&gt;&lt;/a-gltf-model&gt;
+
+    &lt;!-- Basic environment for context --&gt;
+    &lt;a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#AAA"&gt;&lt;/a-plane&gt;
+    &lt;a-sky color="#ECECEC"&gt;&lt;/a-sky&gt;
+    &lt;a-entity camera look-controls position="0 1.6 0"&gt;&lt;/a-entity&gt;
+    &lt;a-light type="ambient" color="#CCC"&gt;&lt;/a-light&gt;
+    &lt;a-light type="directional" color="#FFF" intensity="0.6" position="-1 1 1"&gt;&lt;/a-light&gt;
+&lt;/a-scene&gt;</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Section for Three.js Examples -->
+        <section class="mb-12">
+            <h2 class="text-2xl sm:text-3xl font-semibold mb-6 text-indigo-600 border-b pb-3">
+                Three.js (Low-Level 3D Graphics Library)
+            </h2>
+
+            <p class="mb-8 text-gray-700">
+                Three.js is a powerful JavaScript library that simplifies the process of creating
+                and displaying animated 3D computer graphics in a web browser using WebGL.
+                It provides a higher degree of control over the 3D rendering pipeline compared
+                to A-Frame, but consequently requires more explicit coding for scene setup,
+                object creation, and interactions.
+            </p>
+
+            <!-- Grid layout for Three.js examples -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Three.js Basic Setup & Elements -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col md:col-span-2">
+                    <h3 class="text-xl font-medium mb-4">Basic Scene, Elements & Animation</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Preview (Click and drag to orbit camera):</p>
+                        <div class="preview-container">
+                            <!-- Canvas element where Three.js will render the 3D scene -->
+                            <canvas id="threejs-canvas" class="threejs-canvas-preview"></canvas>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- Include Three.js CDN in your &lt;head&gt; --&gt;
+&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"&gt;&lt;/script&gt;
+&lt;!-- Include OrbitControls for camera interaction --&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"&gt;&lt;/script&gt;
+
+&lt;!-- Canvas element for Three.js rendering --&gt;
+&lt;canvas id="myThreeJsCanvas" style="width: 100%; height: 300px; display: block;"&gt;&lt;/canvas&gt;
+
+&lt;script&gt;
+    // 1. Scene: Where all objects, cameras, and lights are placed
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0); // Set a light gray background
+
+    // 2. Camera: Defines the perspective from which the scene is viewed
+    // PerspectiveCamera(FOV, Aspect Ratio, Near Plane, Far Plane)
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    // 3. Renderer: Renders the scene using WebGL
+    // antialias: true for smoother edges
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('myThreeJsCanvas'), antialias: true });
+    // Set renderer size to match the canvas element's client dimensions
+    renderer.setSize(document.getElementById('myThreeJsCanvas').clientWidth, document.getElementById('myThreeJsCanvas').clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio); // Handle high-DPI screens
+
+    // OrbitControls: Allows camera to orbit around a target using mouse
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; // Provides a smooth, inertia-like feel
+    controls.dampingFactor = 0.25;
+    controls.screenSpacePanning = false; // Prevents panning in screen space
+    controls.maxPolarAngle = Math.PI / 2; // Prevents camera from going below the ground
+
+    // Basic Geometries & Materials
+    // Box: Create a cube geometry
+    const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+    // MeshStandardMaterial: A material that reacts to lights (PBR material)
+    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 }); // Green color
+    const box = new THREE.Mesh(boxGeometry, boxMaterial);
+    box.position.x = -1.5; // Position the box to the left
+    scene.add(box); // Add the box to the scene
+
+    // Sphere: Create a sphere geometry
+    const sphereGeometry = new THREE.SphereGeometry(0.75, 32, 16);
+    const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red color
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere.position.x = 1.5; // Position the sphere to the right
+    scene.add(sphere); // Add the sphere to the scene
+
+    // Plane (Ground): Create a large flat plane
+    const planeGeometry = new THREE.PlaneGeometry(10, 10);
+    const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x = Math.PI / 2; // Rotate the plane to be horizontal
+    plane.position.y = -1; // Position it below the objects
+    scene.add(plane); // Add the plane to the scene
+
+    // Lights
+    // AmbientLight: Illuminates all objects equally from all directions
+    const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+    scene.add(ambientLight);
+
+    // DirectionalLight: Simulates sunlight - light from a distant source
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // White light with full intensity
+    directionalLight.position.set(5, 5, 5).normalize(); // Position the light and normalize its direction
+    scene.add(directionalLight);
+
+    // Set initial camera position
+    camera.position.z = 5;
+    camera.position.y = 2;
+    // Make camera look at the center of the scene
+    controls.target.set(0, 0, 0);
+
+    // Animation Loop: Renders the scene continuously
+    function animate() {
+        requestAnimationFrame(animate); // Request the next frame
+
+        // Rotate the box
+        box.rotation.x += 0.01;
+        box.rotation.y += 0.01;
+
+        // Rotate the sphere
+        sphere.rotation.y += 0.02;
+
+        controls.update(); // Update controls (important if damping/auto-rotate is enabled)
+
+        renderer.render(scene, camera); // Render the scene with the camera
+    }
+
+    // Handle window resize: Adjust camera aspect ratio and renderer size
+    window.addEventListener('resize', () => {
+        const canvas = document.getElementById('myThreeJsCanvas');
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix(); // Update camera's projection matrix after aspect ratio change
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight); // Resize the renderer
+    });
+
+    // Start the animation loop once the window has loaded
+    window.onload = function () {
+        animate();
+    }
+&lt;/script&gt;</code></pre>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-gray-700">
+                        This Three.js example demonstrates the core components of a 3D scene:
+                        `Scene`, `Camera`, and `Renderer`. It creates a basic box and sphere
+                        (`BoxGeometry`, `SphereGeometry`) with materials (`MeshStandardMaterial`),
+                        adds a ground plane, and sets up lighting (`AmbientLight`, `DirectionalLight`).
+                        The `OrbitControls` enable interactive camera movement using the mouse.
+                        The `animate` function runs a continuous loop for rendering and updating
+                        object properties, creating simple animations.
+                    </p>
+                </div>
+
+                <!-- Three.js Loading Models -->
+                <div class="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col">
+                    <h3 class="text-xl font-medium mb-4">Loading 3D Models (GLTFLoader)</h3>
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Description:</p>
+                        <p class="text-gray-700">
+                            Three.js uses `GLTFLoader` (and other specific loaders for different formats)
+                            to import 3D models into your scene. You create an instance of the loader
+                            and then call its `load` method, providing the model's URL and callback
+                            functions for success, progress, and error handling. Once loaded, the
+                            `gltf.scene` object can be added directly to your Three.js scene.
+                            Remember to include the `GLTFLoader.js` script from the Three.js examples.
+                            A live preview is not provided as it relies on external model files.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Code:</p>
+                        <div class="code-block">
+<pre><code>&lt;!-- Include GLTFLoader CDN in your &lt;head&gt; --&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"&gt;&lt;/script&gt;
+
+&lt;script&gt;
+    // Assuming you have your scene, camera, renderer, and lights already set up
+    // ... (previous scene, camera, renderer, lights setup from the basic example) ...
+
+    // Create an instance of GLTFLoader
+    const loader = new THREE.GLTFLoader();
+
+    // Load a glTF resource
+    loader.load(
+        // resource URL: Replace 'path/to/your/model.gltf' with the actual URL of your 3D model
+        'path/to/your/model.gltf',
+        // called when the resource is loaded successfully
+        function (gltf) {
+            // Add the loaded model's scene (a THREE.Group) to your Three.js scene
+            scene.add(gltf.scene);
+
+            // gltf object contains various properties:
+            // gltf.animations: Array&lt;THREE.AnimationClip&gt; - Animations data
+            // gltf.scene: THREE.Group - The loaded 3D model's main group
+            // gltf.scenes: Array&lt;THREE.Group&gt; - All scenes in the glTF file
+            // gltf.cameras: Array&lt;THREE.Camera&gt; - Cameras defined in the glTF file
+            // gltf.asset: Object - Metadata about the glTF asset
+
+            // Optional: Adjust model position/scale after loading if needed
+            gltf.scene.position.set(0, 0, 0); // Set position
+            gltf.scene.scale.set(1, 1, 1);     // Set scale
+            // gltf.scene.rotation.set(0, Math.PI / 2, 0); // Set rotation
+        },
+        // called while loading is progressing
+        function (xhr) {
+            // Log loading progress to the console
+            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        // called when loading has errors
+        function (error) {
+            // Log any errors that occur during loading
+            console.error('An error happened while loading the model:', error);
+        }
+    );
+
+    // ... (rest of your animation loop and resize handler, if part of the same script) ...
+&lt;/script&gt;</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+</body>
+</html>
