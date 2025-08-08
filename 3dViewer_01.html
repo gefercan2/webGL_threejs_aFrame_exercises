@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D OBJ Viewer with Annotations</title>
+    <style>
+        /* Minimal CSS for clean layout */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Controls panel */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        #controls h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        #controls button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #controls button:hover {
+            background: #f5f5f5;
+        }
+
+        #controls select {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* Annotation tooltip styles */
+        .annotation {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 200;
+            max-width: 200px;
+            line-height: 1.4;
+        }
+
+        .annotation::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid rgba(0, 0, 0, 0.8);
+        }
+
+        /* Hotspot markers */
+        .hotspot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff6b6b;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 150;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* Loading indicator */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 300;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- Loading indicator -->
+        <div id="loading">
+            <p>Loading 3D model...</p>
+        </div>
+
+        <!-- Control panel -->
+        <div id="controls">
+            <h3>3D Model Controls</h3>
+            <select id="modelSelector">
+                <option value="Objeto1_.obj">Objeto1_.obj</option>
+                <option value="model2.obj">Model 2 (if available)</option>
+                <option value="model3.obj">Model 3 (if available)</option>
+            </select>
+            <button id="loadModel">Load Selected Model</button>
+            <button id="resetCamera">Reset Camera</button>
+            <button id="toggleWireframe">Toggle Wireframe</button>
+            <button id="toggleAnnotations">Toggle Annotations</button>
+        </div>
+
+        <!-- 3D canvas container -->
+        <div id="canvas-container"></div>
+    </div>
+
+    <!-- Three.js library from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // =====================================
+        // GLOBAL VARIABLES AND CONFIGURATION
+        // =====================================
+        
+        let scene, camera, renderer, controls;
+        let currentModel = null;
+        let annotations = [];
+        let hotspots = [];
+        let isAnnotationsVisible = true;
+        
+        // Configuration object for easy maintenance
+        const CONFIG = {
+            // Default model file (easily changeable)
+            defaultModelFile: 'Objeto1_.obj',
+            
+            // Camera settings
+            camera: {
+                fov: 75,
+                near: 0.1,
+                far: 1000,
+                initialPosition: { x: 0, y: 0, z: 5 }
+            },
+            
+            // Lighting settings
+            lighting: {
+                ambient: { color: 0x404040, intensity: 0.4 },
+                directional: { color: 0xffffff, intensity: 0.8, position: { x: 1, y: 1, z: 1 } }
+            },
+            
+            // Material settings
+            material: {
+                color: 0x888888,
+                wireframe: false
+            },
+            
+            // Sample annotations (modify these for your model)
+            sampleAnnotations: [
+                {
+                    position: { x: 1, y: 1, z: 0 },
+                    title: "Feature 1",
+                    description: "This is an important feature of the object."
+                },
+                {
+                    position: { x: -1, y: 0, z: 1 },
+                    title: "Feature 2", 
+                    description: "Another notable aspect worth highlighting."
+                },
+                {
+                    position: { x: 0, y: -1, z: -1 },
+                    title: "Feature 3",
+                    description: "A third point of interest on the model."
+                }
+            ]
+        };
+
+        // =====================================
+        // INITIALIZATION FUNCTIONS
+        // =====================================
+
+        /**
+         * Initialize the Three.js scene, camera, and renderer
+         */
+        function initThreeJS() {
+            console.log('Initializing Three.js...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // Create camera
+            camera = new THREE.PerspectiveCamera(
+                CONFIG.camera.fov,
+                window.innerWidth / window.innerHeight,
+                CONFIG.camera.near,
+                CONFIG.camera.far
+            );
+            camera.position.set(
+                CONFIG.camera.initialPosition.x,
+                CONFIG.camera.initialPosition.y,
+                CONFIG.camera.initialPosition.z
+            );
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Add renderer to DOM
+            const container = document.getElementById('canvas-container');
+            container.appendChild(renderer.domElement);
+
+            console.log('Three.js initialized successfully');
+        }
+
+        /**
+         * Set up lighting for the scene
+         */
+        function setupLighting() {
+            console.log('Setting up lighting...');
+            
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(
+                CONFIG.lighting.ambient.color,
+                CONFIG.lighting.ambient.intensity
+            );
+            scene.add(ambientLight);
+
+            // Directional light
+            const directionalLight = new THREE.DirectionalLight(
+                CONFIG.lighting.directional.color,
+                CONFIG.lighting.directional.intensity
+            );
+            directionalLight.position.set(
+                CONFIG.lighting.directional.position.x,
+                CONFIG.lighting.directional.position.y,
+                CONFIG.lighting.directional.position.z
+            );
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            console.log('Lighting setup complete');
+        }
+
+        /**
+         * Initialize camera controls for mouse interaction
+         */
+        function initControls() {
+            console.log('Initializing camera controls...');
+            
+            // Simple orbit controls implementation
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            
+            renderer.domElement.addEventListener('mousedown', onMouseDown);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('mouseup', onMouseUp);
+            renderer.domElement.addEventListener('wheel', onMouseWheel);
+
+            function onMouseDown(event) {
+                isDragging = true;
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+            }
+
+            function onMouseMove(event) {
+                if (!isDragging) return;
+
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
+
+                // Rotate camera around the scene
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+            }
+
+            function onMouseUp() {
+                isDragging = false;
+            }
+
+            function onMouseWheel(event) {
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+            }
+
+            console.log('Camera controls initialized');
+        }
+
+        // =====================================
+        // MODEL LOADING FUNCTIONS
+        // =====================================
+
+        /**
+         * Load an OBJ file from the specified path
+         * @param {string} filePath - Path to the OBJ file
+         */
+        function loadOBJModel(filePath) {
+            console.log(`Loading model: ${filePath}`);
+            showLoading(true);
+
+            // Clear previous model
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
+            }
+
+            // Simple OBJ loader implementation
+            // Note: For production, you might want to use the official THREE.OBJLoader
+            fetch(filePath)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    const model = parseOBJ(data);
+                    addModelToScene(model);
+                    centerModelInView();
+                    createAnnotations();
+                    showLoading(false);
+                    console.log('Model loaded successfully');
+                })
+                .catch(error => {
+                    console.error('Error loading model:', error);
+                    showLoading(false);
+                    alert(`Error loading model: ${error.message}`);
+                });
+        }
+
+        /**
+         * Simple OBJ parser (basic implementation)
+         * @param {string} objText - OBJ file content as text
+         * @returns {THREE.Mesh} - Parsed 3D mesh
+         */
+        function parseOBJ(objText) {
+            const vertices = [];
+            const faces = [];
+            
+            const lines = objText.split('\n');
+            
+            for (let line of lines) {
+                line = line.trim();
+                
+                if (line.startsWith('v ')) {
+                    // Vertex
+                    const parts = line.split(/\s+/);
+                    vertices.push(
+                        parseFloat(parts[1]),
+                        parseFloat(parts[2]),
+                        parseFloat(parts[3])
+                    );
+                } else if (line.startsWith('f ')) {
+                    // Face
+                    const parts = line.split(/\s+/);
+                    // Convert to 0-based indexing and handle face format
+                    for (let i = 1; i < parts.length - 2; i++) {
+                        faces.push(
+                            parseInt(parts[1].split('/')[0]) - 1,
+                            parseInt(parts[i + 1].split('/')[0]) - 1,
+                            parseInt(parts[i + 2].split('/')[0]) - 1
+                        );
+                    }
+                }
+            }
+
+            // Create Three.js geometry
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setIndex(faces);
+            geometry.computeVertexNormals();
+
+            // Create material
+            const material = new THREE.MeshLambertMaterial({
+                color: CONFIG.material.color,
+                wireframe: CONFIG.material.wireframe
+            });
+
+            return new THREE.Mesh(geometry, material);
+        }
+
+        /**
+         * Add the loaded model to the scene
+         * @param {THREE.Mesh} model - The 3D model to add
+         */
+        function addModelToScene(model) {
+            currentModel = model;
+            scene.add(model);
+            console.log('Model added to scene');
+        }
+
+        /**
+         * Center the model in the camera view
+         */
+        function centerModelInView() {
+            if (!currentModel) return;
+
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+
+            // Center the model
+            currentModel.position.sub(center);
+
+            // Adjust camera distance based on model size
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const distance = maxDim * 2;
+            camera.position.set(0, 0, distance);
+            camera.lookAt(0, 0, 0);
+
+            console.log('Model centered in view');
+        }
+
+        // =====================================
+        // ANNOTATION FUNCTIONS
+        // =====================================
+
+        /**
+         * Create annotation hotspots for the model
+         */
+        function createAnnotations() {
+            console.log('Creating annotations...');
+            clearAnnotations();
+
+            CONFIG.sampleAnnotations.forEach((annotationData, index) => {
+                createAnnotationHotspot(annotationData, index);
+            });
+
+            console.log(`Created ${CONFIG.sampleAnnotations.length} annotations`);
+        }
+
+        /**
+         * Create a single annotation hotspot
+         * @param {Object} annotationData - Annotation data object
+         * @param {number} index - Annotation index
+         */
+        function createAnnotationHotspot(annotationData, index) {
+            // Create hotspot element
+            const hotspot = document.createElement('div');
+            hotspot.className = 'hotspot';
+            hotspot.id = `hotspot-${index}`;
+            
+            // Create tooltip element
+            const tooltip = document.createElement('div');
+            tooltip.className = 'annotation';
+            tooltip.innerHTML = `<strong>${annotationData.title}</strong><br>${annotationData.description}`;
+            tooltip.style.display = 'none';
+
+            // Add event listeners
+            hotspot.addEventListener('mouseenter', () => {
+                tooltip.style.display = 'block';
+            });
+
+            hotspot.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
+
+            // Add to DOM
+            document.body.appendChild(hotspot);
+            document.body.appendChild(tooltip);
+
+            // Store references
+            hotspots.push(hotspot);
+            annotations.push({
+                hotspot: hotspot,
+                tooltip: tooltip,
+                position: new THREE.Vector3(
+                    annotationData.position.x,
+                    annotationData.position.y,
+                    annotationData.position.z
+                )
+            });
+        }
+
+        /**
+         * Update annotation positions based on camera view
+         */
+        function updateAnnotations() {
+            if (!isAnnotationsVisible) return;
+
+            annotations.forEach(annotation => {
+                // Project 3D position to screen coordinates
+                const vector = annotation.position.clone();
+                vector.project(camera);
+
+                // Convert to screen coordinates
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+                // Update hotspot position
+                annotation.hotspot.style.left = x + 'px';
+                annotation.hotspot.style.top = y + 'px';
+
+                // Update tooltip position
+                annotation.tooltip.style.left = x + 'px';
+                annotation.tooltip.style.top = (y - 60) + 'px';
+
+                // Hide annotations that are behind the model or outside view
+                const isVisible = vector.z < 1 && x >= 0 && x <= window.innerWidth && y >= 0 && y <= window.innerHeight;
+                annotation.hotspot.style.display = isVisible ? 'block' : 'none';
+                if (!isVisible) {
+                    annotation.tooltip.style.display = 'none';
+                }
+            });
+        }
+
+        /**
+         * Clear all existing annotations
+         */
+        function clearAnnotations() {
+            hotspots.forEach(hotspot => hotspot.remove());
+            annotations.forEach(annotation => {
+                annotation.hotspot.remove();
+                annotation.tooltip.remove();
+            });
+            hotspots = [];
+            annotations = [];
+        }
+
+        // =====================================
+        // UI CONTROL FUNCTIONS
+        // =====================================
+
+        /**
+         * Show or hide loading indicator
+         * @param {boolean} show - Whether to show loading indicator
+         */
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            loading.classList.toggle('hidden', !show);
+        }
+
+        /**
+         * Reset camera to initial position
+         */
+        function resetCamera() {
+            camera.position.set(
+                CONFIG.camera.initialPosition.x,
+                CONFIG.camera.initialPosition.y,
+                CONFIG.camera.initialPosition.z
+            );
+            camera.lookAt(0, 0, 0);
+            
+            if (currentModel) {
+                centerModelInView();
+            }
+            
+            console.log('Camera reset to initial position');
+        }
+
+        /**
+         * Toggle wireframe mode
+         */
+        function toggleWireframe() {
+            if (!currentModel) return;
+            
+            currentModel.material.wireframe = !currentModel.material.wireframe;
+            console.log(`Wireframe mode: ${currentModel.material.wireframe ? 'ON' : 'OFF'}`);
+        }
+
+        /**
+         * Toggle annotation visibility
+         */
+        function toggleAnnotations() {
+            isAnnotationsVisible = !isAnnotationsVisible;
+            
+            annotations.forEach(annotation => {
+                annotation.hotspot.style.display = isAnnotationsVisible ? 'block' : 'none';
+                annotation.tooltip.style.display = 'none';
+            });
+            
+            console.log(`Annotations: ${isAnnotationsVisible ? 'VISIBLE' : 'HIDDEN'}`);
+        }
+
+        /**
+         * Handle window resize
+         */
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // =====================================
+        // ANIMATION AND RENDER LOOP
+        // =====================================
+
+        /**
+         * Main animation loop
+         */
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update annotations
+            updateAnnotations();
+            
+            // Render the scene
+            renderer.render(scene, camera);
+        }
+
+        // =====================================
+        // EVENT LISTENERS AND INITIALIZATION
+        // =====================================
+
+        /**
+         * Initialize the entire application
+         */
+        function init() {
+            console.log('Initializing 3D OBJ Viewer...');
+            
+            // Initialize Three.js components
+            initThreeJS();
+            setupLighting();
+            initControls();
+            
+            // Set up event listeners
+            document.getElementById('loadModel').addEventListener('click', () => {
+                const selector = document.getElementById('modelSelector');
+                loadOBJModel(selector.value);
+            });
+            
+            document.getElementById('resetCamera').addEventListener('click', resetCamera);
+            document.getElementById('toggleWireframe').addEventListener('click', toggleWireframe);
+            document.getElementById('toggleAnnotations').addEventListener('click', toggleAnnotations);
+            
+            window.addEventListener('resize', onWindowResize);
+            
+            // Load default model
+            loadOBJModel(CONFIG.defaultModelFile);
+            
+            // Start animation loop
+            animate();
+            
+            console.log('3D OBJ Viewer initialized successfully');
+        }
+
+        // Start the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
