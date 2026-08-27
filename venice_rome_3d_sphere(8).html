@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Venice · Rome — Renaissance Sphere</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width: 100vw; height: 100vh; overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: radial-gradient(circle at 50% 40%, #171730, #0a0a16 75%);
+  color: white;
+}
+
+#threeWrap { position:absolute; inset:0; cursor:grab; }
+#threeWrap.dragging { cursor:grabbing; }
+#threeWrap canvas { display:block; }
+
+.dash-title {
+  position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+  font-size: 15px; font-weight: bold; color: #66ccff;
+  background: rgba(0,0,0,0.55); padding: 6px 20px; border-radius: 20px;
+  border: 1px solid rgba(102,204,255,0.3);
+  pointer-events: none; z-index: 200; text-align:center;
+}
+.dash-sub { font-size:10px; font-weight:normal; color: rgba(255,255,255,0.55); margin-top:2px; }
+
+.hint {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: rgba(255,255,255,0.45);
+  pointer-events:none; z-index: 200;
+}
+
+.zoom-controls { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction:column; gap: 8px; z-index: 200; }
+.zoom-btn {
+  background: rgba(102,204,255,0.15); border: 1px solid rgba(102,204,255,0.45);
+  color: #66ccff; padding: 9px 14px; border-radius: 7px; cursor: pointer;
+  font-weight: bold; font-size: 14px; transition: background 0.2s;
+}
+.zoom-btn:hover { background: rgba(102,204,255,0.32); }
+
+.panel {
+  position: fixed;
+  background: rgba(8,10,26,0.90);
+  border: 1px solid rgba(102,204,255,0.28);
+  border-radius: 12px;
+  z-index: 300;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  width: 230px;
+}
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; cursor: move; user-select: none;
+  border-bottom: 1px solid rgba(102,204,255,0.18);
+}
+.panel-title { font-size: 11px; font-weight: bold; color: #66ccff; }
+.panel-actions { display: flex; gap: 6px; align-items: center; }
+.panel-btn {
+  background: rgba(102,204,255,0.15); border: 1px solid rgba(102,204,255,0.4);
+  color: #66ccff; width: 20px; height: 20px; border-radius: 5px; cursor: pointer;
+  font-size: 12px; display: flex; align-items: center; justify-content: center; line-height: 1;
+  flex-shrink: 0;
+}
+.panel-btn:hover { background: rgba(102,204,255,0.32); }
+.panel-body { padding: 12px; }
+
+.legend-item { display: flex; align-items: center; margin-bottom: 7px; gap: 8px; font-size: 11px; }
+.legend-item:last-child { margin-bottom: 0; }
+.legend-oct { width:14px; height:14px; background:#ff4444; transform: rotate(45deg); border: 1.5px solid white; flex-shrink:0; }
+.legend-box { width:13px; height:13px; background:#ff4444; border: 1.5px solid white; flex-shrink:0; }
+.legend-line { width:14px; height:2px; background:#ff8888; flex-shrink:0; }
+.legend-dot { width:12px; height:12px; border-radius:50%; background:rgba(255,255,255,0.55); border:1.5px solid rgba(255,255,255,0.85); flex-shrink:0; }
+.legend-poly { width:16px; height:16px; background:#4466ff; clip-path: polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%); flex-shrink:0; }
+.legend-eq { width:16px; height:2px; background:#ffcc55; flex-shrink:0; }
+.legend-ring { width:16px; height:2px; background:#66ccff; flex-shrink:0; }
+
+#legendPanel { top: 70px; left: 18px; }
+
+#infoImage {
+  position: fixed; width: 72px; height: 72px; border-radius: 50%;
+  border: 3px solid rgba(102,204,255,0.9); overflow: hidden;
+  background: #1a1a2e; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: bold; color: #66ccff;
+  z-index: 350; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
+#infoImage img { width: 100%; height: 100%; object-fit: cover; }
+#infoImage.visible { opacity: 1; }
+
+#infoText {
+  position: fixed; width: 210px;
+  background: rgba(8,10,26,0.93); border: 1px solid rgba(102,204,255,0.35);
+  border-radius: 10px; z-index: 350; box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+}
+#infoText.visible { opacity: 1; pointer-events: auto; }
+.info-name { font-size: 13px; font-weight: bold; color: #66ccff; }
+.info-meta { font-size: 11px; color: rgba(255,255,255,0.76); line-height: 1.6; margin-bottom: 8px; }
+.info-link {
+  font-size: 11px; color: #66ccff; text-decoration: none;
+  background: rgba(102,204,255,0.12); border: 1px solid rgba(102,204,255,0.28);
+  padding: 5px 10px; border-radius: 5px; display: block; text-align: center;
+}
+.info-link:hover { background: rgba(102,204,255,0.28); }
+
+#infoConnector {
+  position: fixed; height: 1px; background: rgba(102,204,255,0.45);
+  transform-origin: left center; z-index: 340; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+}
+#infoConnector.visible { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<div class="dash-title">Venice · Rome — Renaissance Sphere
+  <div class="dash-sub">x–z = network &nbsp;·&nbsp; y = time, 25-year rings (1492 at the equator)</div>
+</div>
+<div class="hint">drag to rotate · scroll to zoom · click a node</div>
+
+<div class="zoom-controls">
+  <button class="zoom-btn" id="zoomIn">＋</button>
+  <button class="zoom-btn" id="zoomOut">－</button>
+  <button class="zoom-btn" id="resetView" title="Reset view">⟲</button>
+</div>
+
+<div id="threeWrap"></div>
+
+<div class="panel" id="legendPanel">
+  <div class="panel-header" id="legendHeader">
+    <span class="panel-title">Legend</span>
+    <div class="panel-actions"><button class="panel-btn" id="legendToggle">−</button></div>
+  </div>
+  <div class="panel-body" id="legendBody">
+    <div class="legend-item"><div class="legend-dot"></div><span>Node marker (always visible)</span></div>
+    <div class="legend-item"><div class="legend-oct"></div><span>Artist — birth (revealed on select)</span></div>
+    <div class="legend-item"><div class="legend-box"></div><span>Artist — death (revealed on select)</span></div>
+    <div class="legend-item"><div class="legend-line"></div><span>Lifespan S-curve</span></div>
+    <div class="legend-item"><div class="legend-poly"></div><span>City</span></div>
+    <div class="legend-item"><div class="legend-ring"></div><span>25-year ring</span></div>
+    <div class="legend-item"><div style="width:16px;height:2px;background:#ff9955;flex-shrink:0;"></div><span>1453 — Fall of Constantinople</span></div>
+    <div class="legend-item"><div class="legend-eq"></div><span>1492 — Granada falls · Colón reaches America</span></div>
+  </div>
+</div>
+
+<div id="infoConnector"></div>
+<div id="infoImage"></div>
+<div id="infoText">
+  <div class="panel-header" style="cursor:default;">
+    <span class="panel-title info-name" id="infoName"></span>
+    <button class="panel-btn" id="infoClose">×</button>
+  </div>
+  <div class="panel-body">
+    <div class="info-meta" id="infoMeta"></div>
+    <a class="info-link" id="infoLink" href="#" target="_blank" rel="noopener">More info ↗</a>
+  </div>
+</div>
+
+<script>
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA
+   ═══════════════════════════════════════════════════════════════ */
+const NODES_DATA = [
+
+  { name:"Veronese", type:"artist", birth:"b. 1528", death:"d. 1588", "main discipline":"painter", value:"0.5",
+    link:"https://en.wikipedia.org/wiki/Paolo_Veronese",
+    image:"https://upload.wikimedia.org/wikipedia/commons/c/c8/Paolo_Veronese%2C_avtoportret.jpg",
+    birthYear:1528, deathYear:1588 },
+  { name:"Tintoretto", type:"artist", birth:"b. 1518", death:"d. 1594", "main discipline":"painter", value:"0.5",
+    link:"https://en.wikipedia.org/wiki/Tintoretto",
+    image:"https://upload.wikimedia.org/wikipedia/commons/7/73/Tintoretto-selfport.jpg",
+    birthYear:1518, deathYear:1594 },
+  { name:"Jacopo Bassano", type:"artist", birth:"b. 1510", death:"d. 1592", "main discipline":"painter", value:"0.5",
+    link:"https://en.wikipedia.org/wiki/Jacopo_Bassano",
+    image:"https://upload.wikimedia.org/wikipedia/commons/4/48/Jacopo_da_Ponte_012.jpg",
+    birthYear:1510, deathYear:1592 },
+  { name:"Andrea Palladio", type:"artist", birth:"b. 1508", death:"d. 1580", "main discipline":"architect", value:"0.5",
+    link:"https://en.wikipedia.org/wiki/Andrea_Palladio",
+    image:"https://upload.wikimedia.org/wikipedia/commons/e/e4/Andrea_Palladio2.jpeg",
+    birthYear:1508, deathYear:1580 },
+  {  name: "Pinturicchio", type: "artist", birth: "b. 1454", death: "d. 1513","main discipline": "painter",link:"https://en.wikipedia.org/wiki/Pinturicchio",
+ image:"https://upload.wikimedia.org/wikipedia/commons/7/7a/Pinturicchio_self.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original", value: "0.5",birthYear:1454, deathYear:1513},
+  {   name: "Antonio Pollaiuolo", type: "artist",birth: "b. 1429",death: "d. 1498","main discipline": "painter, sculptor", link:"https://en.wikipedia.org/wiki/Antonio_del_Pollaiuolo",image:"https://upload.wikimedia.org/wikipedia/commons/7/7a/San_pietro_in_vincoli%2C_monumento_ai_fratelli_del_pollaiolo%2C_di_luigi_capponi%2C_antonio_%28cropped%29.JPG?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original", value: "0.5",birthYear:   1429, deathYear:   1498},
+{name: "Andrea Schiavone",type: "artist",birth: "b. 1510",death: "d. 1563","main discipline": "painter", link:"https://en.wikipedia.org/wiki/Andrea_Schiavone",
+        image:"https://upload.wikimedia.org/wikipedia/commons/d/db/Schiavone_1.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",value: "0.5",birthYear:   1510, deathYear:   1563},
+		{name: "Parmigianino",type: "artist",birth: "b. 1503",death: "d. 1540", "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Parmigianino",image:"https://upload.wikimedia.org/wikipedia/commons/a/ab/Parmigianino_Selfportrait.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original", value: "0.5",birthYear:   1503, deathYear:   1531 },
+   {name: "Giotto di Bondone", type: "artist",birth: "b. 1267", death: "d. 1337","main discipline": "painter",link:"https://en.wikipedia.org/wiki/Giotto",
+                value: "0.5",image:"https://upload.wikimedia.org/wikipedia/commons/1/1b/Giotto%2C_Santa_Maria_Novella.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+		birthYear:   1267, deathYear:   1337
+              },
+ {name: "Lorenzo Lotto",type: "artist",birth: "b. 1480",death: "d. 1556",
+                "main discipline": "painter",image:"",
+		link:"https://en.wikipedia.org/wiki/Lorenzo_Lotto",image:"https://upload.wikimedia.org/wikipedia/commons/d/df/Lotto_Lorenzo_%28attributed%29_presumably_self_portrait_31862-p.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1480, 
+		deathYear:   1556
+              },
+		{ name: "Sebastiano del Piombo",type: "artist",birth: "b. 1485",death: "d. 1547", "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Sebastiano_del_Piombo",image:"https://upload.wikimedia.org/wikipedia/commons/6/6d/Self_portrait%2C_after_Sebastiano_del_Piombo.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original", value: "0.5",birthYear:   1485, deathYear:   1547
+              },
+ 		{name: "Signorelli",type: "artist",birth: "b. 1441",death: "d. 1523","main discipline": "painter",link:"https://en.wikipedia.org/wiki/Luca_Signorelli", image:"https://upload.wikimedia.org/wikipedia/commons/2/20/Signorelli%2C_Luca_-_selfportrait_alone.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",value: "0.5",birthYear:   1441, deathYear:   1523
+              },
+              {name: "Raphael",type: "artist",birth: " b. 1483",death: "d. 1520 Rome", "main discipline": "painter", value: "0.5", link: "https://en.wikipedia.org/wiki/Raphael",
+		image:"https://upload.wikimedia.org/wikipedia/commons/f/f6/Raffaello_Sanzio.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",birthYear:1483, deathYear:1520
+              },
+              {name: "Michelangelo", type: "artist", birth: "b. 1475", death: "d. 1564", "main discipline": "sculptor", value: "0.5",
+		link: "https://en.wikipedia.org/wiki/Michelangelo",image:"https://upload.wikimedia.org/wikipedia/commons/0/02/Michelangelo_Daniele_da_Volterra_%28dettaglio%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",birthYear:   1475, deathYear:   1564
+              },
+              {name: "Lorenzo Ghiberti",type: "artist",birth: "b. 1378",death: "d. 1455","main discipline": "sculptor",link: "https://en.wikipedia.org/wiki/Lorenzo_Ghiberti",image:"https://upload.wikimedia.org/wikipedia/commons/b/bf/Ghiberti.png?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",birthYear:   1378, deathYear:   1455
+              },
+		{name: "Giorgione",type: "artist",birth: "b. 1473-78",death: "d. 1510","main discipline": "painter", link: "https://en.wikipedia.org/wiki/Giorgione", image:"https://upload.wikimedia.org/wikipedia/commons/a/a2/Self_portrait%2C_by_Giorgio_da_Castelfranco.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",birthYear:   1473, deathYear:   1510
+              },
+              { name: "Leonardo",type: "artist", birth: " b. 1452 Vinci",death: " d. 1519 Loire ", "main discipline": "painter",
+                link: "https://en.wikipedia.org/wiki/Leonardo_da_Vinci",image:"https://upload.wikimedia.org/wikipedia/commons/3/39/Leonardo_da_Vinci_-_Ginevra_de%27_Benci_-_Google_Art_Project.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1452, 
+		deathYear:   1519
+              },
+              {name: "Perugino",type: "artist",birth: "b. 1446",death: "d. 1523","main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Pietro_Perugino", image:"https://upload.wikimedia.org/wikipedia/commons/3/3b/Pietro_Perugino_031.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1446, 
+		deathYear:   1523
+              },
+              {
+                name: "Bramante",
+                type: "artist",
+                birth: "b. 1444",
+                death: "d. 1514",
+                "main discipline": "architect",
+		link:"https://en.wikipedia.org/wiki/Donato_Bramante",image:"https://upload.wikimedia.org/wikipedia/commons/0/01/Tempietto_di_San_Pietro_in_Montorio.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1444, 
+		deathYear:   1514
+              },
+              {
+                name: "Verrocchio",
+                type: "artist",
+                birth: "b. 1435",
+                death: "d. 1488",
+                "main discipline": "sculptor",
+		link:"https://en.wikipedia.org/wiki/Andrea_del_Verrocchio",
+                value: "0.5",
+		birthYear:   1435, 
+		deathYear:   1488
+              },
+ {name: "Mantegna",type: "artist", birth: "b. 1431",death: "d. 1506","main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Andrea_Mantegna", image:"https://upload.wikimedia.org/wikipedia/commons/4/42/Mantegna_Bronze_Bust_San_Andrea_Mantua.png?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1431, 
+		deathYear:   1506
+              },
+              {name: "Giovanni Bellini",type: "artist",birth: "b. 1430",death: "d. 1516",
+                "main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Giovanni_Bellini", image:"https://upload.wikimedia.org/wikipedia/commons/1/11/Giovanni_Bellini_Felt%C3%A9telezett%C3%96narck%C3%A9peKJ.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original", image:"https://upload.wikimedia.org/wikipedia/commons/1/11/Giovanni_Bellini_Felt%C3%A9telezett%C3%96narck%C3%A9peKJ.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1430, 
+		deathYear:   1516
+              },
+              {
+                name: "Gentile Bellini",
+                type: "artist",
+                birth: "b. 1429",
+                death: "d. 1507",
+                "main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Gentile_Bellini",image:"https://upload.wikimedia.org/wikipedia/commons/b/bd/Bellini_selfportrait.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1429, 
+		deathYear:   1507
+              },
+              {name: "Antonello de Messina",type: "artist",birth: "b. 1425,1430",
+                death: "d. 1479",
+                "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Antonello_da_Messina",image:"https://upload.wikimedia.org/wikipedia/commons/e/ed/Antonello_da_Messina_-_Portrait_of_a_Man_-_National_Gallery_London.jpg?utm_source=it.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1425, 
+		deathYear:   1479
+              },
+              {name: "Piero della Francesca", type: "artist", birth: "b. 1415",death: "d. 1492", "main discipline": "painter", link:"https://en.wikipedia.org/wiki/Piero_della_Francesca",image:"https://upload.wikimedia.org/wikipedia/commons/4/46/Piero_della_Francesca_Malatesta.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1415, 
+		deathYear:   1492
+              },
+		{name: "Luca Della Robia",type: "artist",birth: "b. 1399",death: "d. 1482",
+                "main discipline": "sculptor",link:"https://en.wikipedia.org/wiki/Luca_della_Robbia",image:"https://upload.wikimedia.org/wikipedia/commons/d/dc/Luca_della_Robbia%2C_Madonna_and_Child_with_Angels%2C_c1470%2C_Bargello%2C_Florence.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1399, 
+		deathYear:   1482
+              },
+		{ name: "Andrea Della Robia",
+                type: "artist",
+                birth: "b. 1435",
+                death: "d. 1525",
+                "main discipline": "sculptor",
+		link:"https://en.wikipedia.org/wiki/Andrea_della_Robbia",image:"https://upload.wikimedia.org/wikipedia/commons/5/58/Virgin_Child_Cherubim_Della_Robbia.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1435, 
+		deathYear:   1525
+              },
+              { name: "Filippo Lippi",type: "artist",birth: "b. 1406",death: "d. 1469", "main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Filippo_Lippi",image:"https://upload.wikimedia.org/wikipedia/commons/3/3c/Lippi_z13.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",  value: "0.5",
+		birthYear:   1406, 
+		deathYear:   1469
+              },
+              { name: "Alberti",type: "artist",birth: "b. 1404",death: "d. 1472","main discipline": "architect",
+	      	link:"https://en.wikipedia.org/wiki/Leon_Battista_Alberti",image:"https://upload.wikimedia.org/wikipedia/commons/3/34/Leon_Battista_Alberti%2C_Self-Portrait%2C_c._1435%2C_NGA_43845.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1404, 
+		deathYear:   1472
+              },
+              {name: "Massaccio",type: "artist", birth: "b. 1401",death: "d. 1428",
+                "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Masaccio",image:"https://upload.wikimedia.org/wikipedia/commons/9/96/Masaccio_Self_Portrait.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1401, 
+		deathYear:   1428
+              },
+              {name: "Paolo Ucello",type: "artist",birth: "b. 1397",
+                death: "d. 1475",
+                "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Paolo_Uccello",image:"https://upload.wikimedia.org/wikipedia/commons/2/2b/Cinq_ma%C3%AEtres_de_la_Renaissance_florentine_-_Uccello_%28Louvre%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1397, 
+		deathYear:   1475
+              },
+              {name: "Fra Angelico",
+                type: "artist",
+                birth: "b. 1395",
+                death: "d. 1455",
+                "main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Fra_Angelico",image:"https://upload.wikimedia.org/wikipedia/commons/4/41/Fra_Angelico_portrait.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1395, 
+		deathYear:   1455
+              },
+              {
+                name: "Donatello",
+                type: "artist",
+                birth: "b. 1386",
+                death: "d. 1466",
+                "main discipline": "sculptor",
+		link:"https://en.wikipedia.org/wiki/Donatello",image:"https://upload.wikimedia.org/wikipedia/commons/7/7f/Florence_-_David_by_Donatello.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1386, 
+		deathYear:   1466
+              },
+              {
+                name: "Brunelleschi",
+                type: "artist",
+                birth: "b. 1377",
+                death: "d. 1446",
+                "main discipline": "sculptor",
+		link:"https://en.wikipedia.org/wiki/Filippo_Brunelleschi",image:"https://upload.wikimedia.org/wikipedia/commons/7/72/Masaccio%2C_cappella_brancacci%2C_san_pietro_in_cattedra._ritratto_di_filippo_brunelleschi-184.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1377, 
+		deathYear:   1446
+              },
+              {
+                name: "Taddeo Gaddi",type: "artist",birth: "b. 1300", death: " d. 1366", "main discipline": " painter ",
+		link:"https://en.wikipedia.org/wiki/Taddeo_Gaddi",image:"https://upload.wikimedia.org/wikipedia/commons/3/34/Taddeo_Gaddi%2C_Visitation%2C_c1330%2C_Baroncelli_chapel%2C_Santa_Croce%2C_Florence.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",birthYear:   1300, deathYear:   1366},
+		{name: "Antonio Bazzi",
+                type: "artist",
+                birth: "b. 1477",
+                death: " d. 1549",
+                "main discipline": " painter ",
+		link:"https://en.wikipedia.org/wiki/Il_Sodoma",image:"https://upload.wikimedia.org/wikipedia/commons/2/25/Giovanni_Antonio_Bazzi.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1477, 
+		deathYear:   1549
+              },
+              { name: "Duccio Buonisegna",
+                type: "artist",
+                birth: "b. 1255",
+                death: "d. 1318–1319",
+                "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Duccio",image:"https://upload.wikimedia.org/wikipedia/commons/6/65/Duccio_Di_Buoninsegna_-_Madonna_col_Bambino.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1255, 
+		deathYear:   1318
+              },
+              {
+                name: "Giovanni Pisano",
+                type: "artist",
+                birth: "b. 1250",
+                death: "d. 1315",
+                "main discipline": "sculptor",
+		link:"https://en.wikipedia.org/wiki/Giovanni_Pisano",image:"https://upload.wikimedia.org/wikipedia/commons/1/1e/Madonna_del_colloquio%2C_Giovanni_Pisano%2C_Museo_dell%27Opera_del_Duomo_%28Pisa%29.JPG?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1250, 
+		deathYear:   1315
+              },
+              {name: "Giulio Romano",
+                type: "artist",
+                birth: " b. 1499",
+                death: " Roma ",
+                "main discipline": " d. 1546", 			
+		link:"https://en.wikipedia.org/wiki/Giulio_Romano",image:"https://upload.wikimedia.org/wikipedia/commons/7/75/Titian_-_Portrait_of_Giulio_Romano_-_WGA22947.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                value: "0.5",
+		birthYear:   1499, 
+		deathYear:   1546
+              },
+              {
+                name: "Sandro Botticelli",
+                type: "artist",
+                birth: "b. 1445",
+                death: "d. 1510",
+                "main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Sandro_Botticelli",
+                value: "0.5",image:"https://upload.wikimedia.org/wikipedia/commons/d/d4/Sandro_Botticelli_083.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+		birthYear:   1445, 
+		deathYear:   1510
+              },
+              {
+                name: "Jacopo Bellini",
+                type: "artist",
+                birth: "b. 1396",
+                death: " d. 1470",
+                "main discipline": " Venice ",
+		link:"https://en.wikipedia.org/wiki/Jacopo_Bellini",
+                value: "0.5",image:"https://upload.wikimedia.org/wikipedia/commons/6/69/Jacopo_Bellini-_Madonna_and_Child.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+		birthYear:   1396, 
+		deathYear:   1470
+              },
+
+{ name: "Carlo Crivelli",type: "artist",birth: "b. 1430",death: "d. 1495", "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Carlo_Crivelli", value: "0.5",image:"https://upload.wikimedia.org/wikipedia/commons/7/71/The_Annunciation%2C_with_Saint_Emidius_-_Carlo_Crivelli_-_National_Gallery.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",  
+		birthYear:   1430, 
+		deathYear:   1495
+              },
+{ name: "Vittore Carpaccio",type: "artist", birth: "b. 1460",death: "d. 1525", "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Vittore_Carpaccio", image:"https://upload.wikimedia.org/wikipedia/commons/4/4e/Vittore_Carpaccio_006.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",  
+                value: "0.5",
+		birthYear:   1460, 
+		deathYear:   1525
+              },
+{name: "Cimabue",type: "artist", birth: "b. 1240",death: "d. 1302", "main discipline": "painter",
+		link:"https://en.wikipedia.org/wiki/Cimabue",image:"https://upload.wikimedia.org/wikipedia/commons/e/e4/Andrea_Palladio2.jpeg",  
+                value: "0.5", image:"https://upload.wikimedia.org/wikipedia/commons/c/ce/CimabueSantaMariaNovella.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+		birthYear:   1248, 
+		deathYear:   1302
+              },
+
+                 { name: "Ghirlandaio", 
+			type: "artist", 
+			birth: "b. 1508", death: "d. 1580", 
+                	"main discipline": "architect",
+			link:"https://en.wikipedia.org/wiki/Domenico_Ghirlandaio", image:"https://upload.wikimedia.org/wikipedia/commons/d/de/Domenico_Ghirlandaio_Self_Portrait.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+                	value: 0.5,
+			birthYear:   1508, 
+			deathYear:   1580
+			},
+      {name: "Titian",type: "artist",birth: "b. 1485",death: "d. 1576","main discipline": "painter",link:"https://en.wikipedia.org/wiki/Titian",image:"https://upload.wikimedia.org/wikipedia/commons/b/bd/Titian_-_Self-portrait_%28Museo_del_Prado%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",value: "0.5",birthYear:   1485, deathYear:   1576},
+{ name: "Pontormo",type: "artist",birth: " b. 1494",death: " d. 1557 ","main discipline": "painter ", link: " https://en.wikipedia.org/wiki/Pontormo",image:"https://upload.wikimedia.org/wikipedia/commons/1/13/Pontormo_%28Jacopo_Carucci%29_%28Italian%2C_Florentine%29_-_Portrait_of_a_Halberdier_%28Francesco_Guardi%3F%29_-_Google_Art_Project.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",value: "0.5",
+birthYear:   1494, deathYear:   1557},
+{ name: "Andrea del Sarto",type: "artist",birth: "b. 1486",death: "d. 1531", "main discipline": "painter",link:"https://en.wikipedia.org/wiki/Andrea_del_Sarto",
+value: "0.5",image:"https://upload.wikimedia.org/wikipedia/commons/9/9c/Sarto%2C_Andrea_del_-_Self-portrait_-_Uffizi.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",birthYear: 1486, deathYear: 1531},
+
+  /* newly added city-states */
+  { name:"VENICE", type:"city", birth:"city state", death:"(Veneto)",
+    "main discipline":"Republic of Venice (La Serenissima)", value:"5",
+    link:"https://en.wikipedia.org/wiki/Republic_of_Venice",
+    image:"https://upload.wikimedia.org/wikipedia/commons/a/af/Vaporetti_Venice_Lagoon.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+    population:30000 },
+  { name:"ROME", type:"city", birth:"Seat of the Pope", death:"(Lazio)",image:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Trevi_Fountain%2C_Rome%2C_Italy_2_-_May_2007.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original","main discipline":"Papal Estates", value:"6",link:"https://en.wikipedia.org/wiki/Papal_States",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_the_Papal_States_%281825-1870%29.svg/320px-Flag_of_the_Papal_States_%281825-1870%29.svg.png",
+    population:10000 },
+  { name:"NAPLES", type:"city", birth:"Kingdom (Spanish Crown)", death:"Campania",
+    "main discipline":"Sicilia, Kingdom of Naples", value:"5",
+    link:"https://en.wikipedia.org/wiki/Kingdom_of_Naples",population:50000 },
+  { name:"FLORENCE", type:"city state", birth:"Medici dynasty", death:"(Tuscany)",image:"https://upload.wikimedia.org/wikipedia/commons/d/d2/FirenzeDec092023_01.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+    "main discipline":"Republic of Florence", value:"4",
+    link:"https://en.wikipedia.org/wiki/Republic_of_Florence",population:32000 },
+  { name:"MANTUA", type:"city", birth:"House of Gonzaga", death:"",
+    "main discipline":"Duchy of Mantua", value:"3",
+    link:"https://en.wikipedia.org/wiki/Duchy_of_Mantua",population:12000 },
+  { name:"MILAN", type:"city", birth:"city state", death:"(Lombardia)",
+    "main discipline":"Duchy of Milan", value:"3",
+    link:"https://en.wikipedia.org/wiki/Duchy_of_Milan",population:62000 },
+  { name:"PADUA", type:"city", birth:"city state", death:"",
+    "main discipline":"city of Padova", value:"2",
+    link:"https://en.wikipedia.org/wiki/Padua" },
+  { name:"SIENA", type:"city state", birth:"citizen-based", death:"(Tuscany)",
+    "main discipline":"Republic of Siena", value:"2",
+    link:"https://en.wikipedia.org/wiki/Republic_of_Siena",population:12000 },
+  { name:"URBINO", type:"city", birth:"city state", death:"House of Montefeltro",
+    "main discipline":"Duchy of Urbino", value:"2",
+    link:"https://en.wikipedia.org/wiki/Duchy_of_Urbino",population:12000 },
+  { name: "PERUGIA",type: "city", birth: "", death: "(Umbria)", "main discipline": "",
+		link:"https://en.wikipedia.org/wiki/Perugia",value: "2",population:12000}
+];
+
+const LINKS_DATA = [
+              {source:"FLORENCE", target:"ROME" },
+  	          {source:"FLORENCE", target:"Pontormo"},
+ 	          {source:"FLORENCE",target:"Andrea del Sarto"},
+  	          {source:"FLORENCE",target:"Alberti"},
+ 	          {source:"FLORENCE",target:"Sandro Botticelli"},
+              {source:"FLORENCE",target:"Brunelleschi"},
+	          {source:"FLORENCE",target:"Lorenzo Ghiberti"},
+              {source:"FLORENCE",target:"Cimabue"},
+              {source:"FLORENCE", target:"Duccio Buonisegna"},
+              {source:"FLORENCE", target:"Donatello"},
+  	          {source:"FLORENCE",target:"Filippo Lippi"},
+ 	          {source:"FLORENCE",target:"Fra Angelico"},
+              {source:"FLORENCE",target:"Ghirlandaio" },
+              {source:"FLORENCE",target:"Giotto di Bondone"},
+              {source:"FLORENCE",target:"Leonardo"},
+              {source:"FLORENCE",target:"Mantegna"},
+              {source:"FLORENCE",target:"Massaccio"},
+	          {source:"FLORENCE",target:"Parmigianino"},
+              {source:"FLORENCE",target:"Michelangelo"},
+              {source:"FLORENCE",target:"Perugino"},
+              {source:"FLORENCE",target:"Piero della Francesca"},
+              {source:"FLORENCE",target:"Luca Della Robia"},
+              {source:"FLORENCE", target:"Signorelli"},
+              {source:"FLORENCE",target:"Andrea Della Robia"},
+ 	          {source:"FLORENCE",target:"Raphael"},
+              {source:"FLORENCE",target:"Antonio Pollaiuolo"},
+              {source:"FLORENCE",target:"Taddeo Gaddi"},
+              {source:"FLORENCE",target:"Verrocchio"},
+              {source:"FLORENCE",target:"Paolo Ucello"},
+              {source:"FLORENCE",target:"ROME"},
+              {source:"Gentile Bellini",target:"Giovanni Bellini"},
+              {source:"MANTUA",target:"Giulio Romano"},
+              {source:"MANTUA",target:"Alberti"},
+              {source:"MANTUA",target:"Andrea Palladio"},
+              {source:"MANTUA",target:"Mantegna"},
+              {source:"MILAN",target:"Bramante"},
+              {source:"MILAN",target:"Leonardo"},
+              {source:"NAPLES",target:"ROME"},
+              {source:"NAPLES",target:"Antonello de Messina"},
+              {source:"PADUA",target:"Donatello"},
+              {source:"PADUA",target:"Filippo Lippi"},
+              {source:"PADUA",target:"Giotto di Bondone"},
+              {source:"PADUA",target:"Jacopo Bellini"},
+              {source:"PADUA",target:"Mantegna"},
+              {source:"PERUGIA",target:"Perugino"},
+              {source:"PERUGIA", target:"Pinturicchio"},
+              {source:"ROME",target:"Sandro Botticelli"},
+              {source:"ROME",target:"Fra Angelico"},
+              {source:"ROME",target:"Giulio Romano"},
+              {source:"ROME",target:"Sandro Botticelli"},
+              {source:"ROME",target:"Bramante"},
+              {source:"ROME",target:"Cimabue"},
+              {source:"ROME",target:"Donatello"},
+              {source:"ROME",target:"Leonardo"},
+              {source:"ROME",target:"Michelangelo"},
+              {source:"ROME",target:"Perugino"},
+              {source:"ROME",target:"Raphael"},
+	          {source:"ROME",target:"Parmigianino"},
+	          {source:"ROME", target:"Signorelli"},
+	          {source:"ROME", target:"Antonio Bazzi"},
+	          {source:"ROME", target:"Pinturicchio"},
+	          {source:"ROME", target:"Sebastiano del Piombo"},
+              {source:"SIENA", target:"Duccio Buonisegna"},
+	          {source:"SIENA", target:"Antonio Bazzi"},
+	          {source:"SIENA", target:"Signorelli"},
+              {source:"SIENA", target:"FLORENCE"},
+	          {source:"SIENA", target:"Pinturicchio"},
+              {source:"SIENA",target:"Giovanni Pisano"},
+              {source:"URBINO",target:"Bramante"},
+              {source:"URBINO",target:"Piero della Francesca"},
+ 	          {source:"URBINO",target:"Raphael"},
+              {source:"VENICE",target:"Andrea Palladio"},
+              {source:"VENICE",target:"Antonello de Messina"},
+              {source:"VENICE",target:"Gentile Bellini"},
+              {source:"VENICE",target:"Giorgione"},
+              {source:"VENICE",target:"Giovanni Bellini"},
+              {source:"VENICE",target:"Jacopo Bellini"},
+              {source:"VENICE",target:"Mantegna"},
+              {source:"VENICE",target:"ROME"},
+	          {source:"VENICE",target:"PADUA"},
+              {source:"VENICE",target:"Titian"},
+              {source:"VENICE", target:"Verrocchio"},
+	          {source:"VENICE", target:"Sebastiano del Piombo"},
+	          {source:"VENICE", target:"Lorenzo Lotto"},
+	          {source:"VENICE", target:"Carlo Crivelli"},
+              {source:"VENICE", target:"Vittore Carpaccio"},
+	          {source:"VENICE", target:"Andrea Schiavone"},
+              {source:"VENICE", target:"Jacopo Bassano" },
+              {source:"VENICE", target:"Veronese" },
+              {source:"VENICE", target:"Andrea Palladio" },
+              {source:"VENICE", target:"Tintoretto" }
+];
+
+
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG — every visual/behavioural knob lives here. Grouped by what
+   it controls; each field is commented with what changing it does.
+   ═══════════════════════════════════════════════════════════════ */
+const CONFIG = {
+
+  // ── THE SPHERE ITSELF (wireframe grid rings + meridians + equator) ──
+  sphere: {
+    radius:          350,      // sphere size, in world units — everything else scales off this
+    gridOpacity:     0.22,     // opacity of the plain 25-year latitude rings (thin blue circles)
+    meridianOpacity: 0.10,     // opacity of the faint vertical "orange-slice" lines (pure decoration)
+    equatorColor:    0xffcc55, // color used for the 1492 ring (also read by CONFIG.events below)
+    equatorOpacity:  0.6       // (kept for reference; actual per-event opacity is set in CONFIG.events)
+  },
+
+  // ── ARTIST / CITY NODE APPEARANCE ──
+  node: {
+    artistColor:     0xff4444, // color of every artist element: lifeline, birth/death markers, years
+    cityColor:       0x4466ff, // color of every city element: the icosahedron marker
+    birthSize:       9,        // radius of the birth-year octahedron marker
+    deathSize:       9,       // side length of the death-year cube marker
+    lifelineRadius:  1.0,      // thickness of the S-curve lifeline tube
+    sCurveOffset:    16,       // how far the lifeline bows left/right — bigger = more pronounced "S"
+    junctionRadius:  7,        // size of the small always-visible circle at the mid-life point
+    citySizeRange:   [10, 14]  // [min,max] icosahedron radius, scaled from each city's `value` field
+  },
+
+  // ── 2D FORCE LAYOUT (produces the x/z network positions — see computeXZLayout) ──
+  force: {
+    linkDistance:    190,  // preferred distance between two linked nodes (city ↔ artist)
+    chargeStrength:  -780, // node-vs-node repulsion; more negative = more spread out
+    centerStrength:  0.01, // how strongly everything is pulled toward the sphere's x/z center
+    collideRadius:   80,   // minimum gap the simulation tries to keep between any two nodes
+    alphaDecay:      0.2, // how fast the simulation "cools down" (lower = settles more slowly/tightly)
+    settleTicks:     400   // number of simulation steps run before freezing the layout
+  },
+  positioning: {
+    centerNode:      "ROME",                       // this node is pinned at x=0,z=0
+    nodeOffsets:     { 
+        "VENICE":   { dx: 450,  dy: 920 , dz: 100},  // px offset from centre node
+        "MILAN":    { dx: -420, dy:  -560 , dz: 100 },
+      "FLORENCE": { dx: -440, dy:  100  , dz: 100 },
+      "SIENA":    { dx: -280, dy:  -720  , dz: -100 },
+      "MANTUA":   { dx:  40,  dy: -280  , dz: 100},
+      "URBINO":   { dx: 20,   dy:  -200  , dz: 100 },
+      "PADUA":    { dx: 60,   dy: -320,  dz: 100  },
+      "NAPLES":   { dx: 160,  dy:  600 , dz: 100  }}, // starting hint for named nodes (sim can still move them)
+    xzContainRadius: 195   // hard clamp: no node's x/z may drift further than this from center
+  },
+
+  // ── TIME AXIS (maps a calendar year to a Y position / ring) ──
+  // The grid is generated FROM this same scale (tickYears), so every 25-year
+  // ring you see is numerically the same value used to place the nodes —
+  // nothing here is decorative/approximate.
+  timeline: {
+    centerYear:   1492,               // the equator (y = 0)
+    ringStepYears: 25,                // <- "each horizontal ring = 25 years"
+    yearRange:    [1350, 1600],       // range covered by the rings/axis
+    pxPerYear:    (250 * 2) / 220,    // world-units per year; 220-year half-span keeps 1400 & 1600 inside the sphere
+    axisOffset:   300                 // x-distance of the plain pole-to-pole reference line from the center
+  },
+  get tickYears() {
+    const [a, b] = this.timeline.yearRange, step = this.timeline.ringStepYears;
+    const out = []; for (let y = a; y <= b; y += step) out.push(y); return out;
+  },
+
+  // ── LINKS BETWEEN A CITY AND ITS ARTISTS ──
+  links: {
+    curveOffset: 22,       // how far the S-curved link bows out sideways from a straight line
+    color:       0xffffff, // link line color
+    segments:   124         // smoothness of the curve (more = smoother, costs a little perf)
+  },
+
+  // ── HISTORICAL HIGHLIGHT RINGS ──
+  // Each entry draws an extra ring (independent of the routine 25-year grid) at
+  // its exact year, with a title that is physically curved onto the ring itself
+  // (see buildCurvedRingLabel). Add more entries here to mark other events.
+  events: [
+    { year: 1453, title: 'Fall of Constantinople',                    color: 0xff9955, opacity: 0.55, labelSize: 26 },
+    { year: 1492, title: 'Fall of Granada · Colón arrives in America', color: 0xffcc55, opacity: 0.65, labelSize: 30 }
+    // fields: year (exact, doesn't need to land on a 25-year tick) · title (shown as "YEAR · title")
+    //       · color (hex, used for both the ring line and the title text)
+    //       · opacity (ring line strength) · labelSize (title height, in world units)
+  ],
+
+  // ── POPULATION HALOS (translucent spheres behind Venice/Rome) ──
+  bubbles: { color: 0xffc850, opacity: 0.07 },
+
+  /* ─────────────────────────────────────────────────────────────
+     OPACITY STATES — the three "modes" every node lives in.
+     • IDLE/DEFAULT   → nothing is selected yet. Persistent marker
+       (circle + name) shows at a normal-but-not-maxed level; detail
+       (lifeline/birth-death/years) stays dim.
+     • CONNECTED       → this node is directly linked to whatever IS
+       selected (or it's the selection itself): everything about it
+       brightens to full strength — this is the actual "highlight".
+     • UNRELATED        → something else is selected and this node
+       has no link to it: dims further than idle.
+     NOTE: `persistentIdle` must stay below `selected`, or a connected
+     node will look identical to its resting state (nothing to compare
+     against) and the highlight becomes invisible — that was the bug.
+     ───────────────────────────────────────────────────────────── */
+  effects: {
+    selected:        1.00,  // CONNECTED/SELECTED — full strength, every tier
+    persistentIdle:  0.50,  // IDLE — circle + name, before anything is clicked
+    deselectedNode:  0.15,  // UNRELATED — circle + name of a non-connected node
+    detailDim:       0.08,  // IDLE/UNRELATED — lifeline, birth/death markers, year labels
+    deselectedLink:  0.05   // UNRELATED — links not touching the current selection
+  },
+
+  /* "Force diagram" pulls — SELECTED-only behaviour. Rest state = 0 offset.
+     minPull guarantees the motion is always visible (see applyPulls() note
+     for why a pure distance-proportional pull could end up near-zero). */
+  pull: {
+    cityYFactor:   0.6,   // how much of an artist's mid-life Y a linked city eases toward (0–1)
+    artistXFactor: 0.55,  // how much of a city's X a linked artist eases toward (0–1)
+    minPull:       55,    // minimum pull distance (world units), regardless of the above factors
+    ease:          0.06   // per-frame easing speed toward the target (higher = snappier, lower = slower glide)
+  },
+
+  // Idle "floating" motion — always on, independent of selection (every artist lifeline).
+  float: {
+    ampY:    3.2,   // vertical bob amplitude, world units
+    ampRotZ: 0.025, // gentle tilt amplitude, radians
+    speed:   0.7    // oscillation speed — higher = faster bobbing
+  },
+
+  // Selected-artist name label rotates 90° to run vertically along the lifeline.
+  nameRotate: { angle: Math.PI / 2, ease: 0.14 },
+
+  // ── CAMERA ──
+  camera: {
+    distance: 780,  // default distance from the sphere's center
+    min: 340,       // closest you can zoom in
+    max: 1500,      // furthest you can zoom out
+    zoomStep: 60,   // distance change per click of the +/- buttons
+    phi: 1.15,      // default polar angle (radians) — vertical tilt
+    theta: 0.55     // default azimuthal angle (radians) — horizontal rotation
+  }
+};
+
+function yScale(year) { return (CONFIG.timeline.centerYear - year) * CONFIG.timeline.pxPerYear; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   STATIC NETWORK LAYOUT (x/z)
+   ═══════════════════════════════════════════════════════════════ */
+function computeXZLayout() {
+  const { centerNode, nodeOffsets, xzContainRadius } = CONFIG.positioning;
+
+  NODES_DATA.forEach(n => {
+    if (n.name === centerNode) { n.fx = 0; n.fy = 0; }
+    else if (nodeOffsets[n.name]) { n.x = nodeOffsets[n.name].dx; n.y = nodeOffsets[n.name].dz; }
+    else { n.x = (Math.random()-0.5) * 300; n.y = (Math.random()-0.5) * 300; }
+  });
+
+  const sim = d3.forceSimulation(NODES_DATA)
+    .force('link',   d3.forceLink(LINKS_DATA).id(d => d.name).distance(CONFIG.force.linkDistance))
+    .force('charge', d3.forceManyBody().strength(CONFIG.force.chargeStrength))
+    .force('center', d3.forceCenter(0, 0).strength(CONFIG.force.centerStrength))
+    .force('collide', d3.forceCollide(CONFIG.force.collideRadius))
+    .alphaDecay(CONFIG.force.alphaDecay)
+    .stop();
+
+  for (let i = 0; i < CONFIG.force.settleTicks; i++) {
+    sim.tick();
+    NODES_DATA.forEach(n => {
+      const d = Math.sqrt(n.x*n.x + n.y*n.y);
+      if (d > xzContainRadius) {
+        const a = Math.atan2(n.y, n.x);
+        n.x = Math.cos(a) * xzContainRadius;
+        n.y = Math.sin(a) * xzContainRadius;
+      }
+    });
+  }
+
+  NODES_DATA.forEach(n => { n.posX = n.x; n.posZ = n.y; });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   THREE.JS SCENE
+   ═══════════════════════════════════════════════════════════════ */
+let scene, camera, renderer;
+let camDistance = CONFIG.camera.distance, camTheta = CONFIG.camera.theta, camPhi = CONFIG.camera.phi;
+let isDragging = false, downX = 0, downY = 0, lastX = 0, lastY = 0;
+const raycaster = new THREE.Raycaster();
+const mouseNDC = new THREE.Vector2();
+
+const pickables = [];            // clickable meshes/sprites -> .userData.name
+const persistentDimmables = [];  // {mesh,name} — the always-present circle+name tier
+const detailDimmables = [];      // {mesh,name} — lifeline/birth/death/year-label tier (hidden by default)
+const linkEntries = [];          // {mesh, source, target}
+const nodeIndex = {};            // name -> NODES_DATA entry
+const cityGroups = {};           // name -> THREE.Group
+const artistGroups = {};         // name -> THREE.Group
+const cityAnim = [];             // {name, group, target}                (Y pull)
+const artistAnim = [];           // {name, group, restX, target, baseX, phase, nameLbl, rotTarget}  (X pull + float + name rotation)
+let currentSelection = null;
+
+function isCityType(t) { return t.indexOf('city') === 0; }
+
+// worldHeight = the sprite's final rendered height in Three.js world units,
+// independent of text length or canvas resolution — this is what keeps year
+// labels (and every other label) reliably legible regardless of zoom.
+function makeTextSprite(text, color, worldHeight) {
+  worldHeight = worldHeight || 15;
+  const renderFontSize = 46; // fixed, crisp canvas resolution — NOT the final size
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = `bold ${renderFontSize}px Arial`;
+  const w = Math.ceil(ctx.measureText(text).width) + 18;
+  canvas.width = w; canvas.height = Math.ceil(renderFontSize * 2.8);
+  ctx.font = `bold ${renderFontSize}px Arial`;
+  ctx.textBaseline = 'bottom';
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  ctx.strokeText(text, 14, canvas.height / 2);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 14, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  const scale = worldHeight / canvas.height;
+  sprite.scale.set(canvas.width * scale, canvas.height * scale, 1);
+  return sprite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NUMERICALLY-MEANINGFUL GRID
+   One ring per 25-year step (CONFIG.timeline.ringStepYears), each ring being the
+   true latitude circle of the sphere at that year's y (radius = sqrt(R²-y²)),
+   labeled with the year. The 1492 equator is drawn separately, highlighted.
+   ═══════════════════════════════════════════════════════════════ */
+function buildTimeGrid() {
+  const R = CONFIG.sphere.radius;
+
+  CONFIG.tickYears.forEach(year => {
+    const y = yScale(year);
+    const ringR = Math.sqrt(Math.max(0, R * R - y * y));
+    const pts = [];
+    for (let i = 0; i <= 72; i++) {
+      const a = (i / 72) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * ringR, y, Math.sin(a) * ringR));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, opacity: CONFIG.sphere.gridOpacity });
+    scene.add(new THREE.Line(geo, mat));
+
+    const lbl = makeTextSprite(String(year), 'rgba(170,220,255,0.85)', 24);
+    lbl.position.set(ringR + 16, y, 0);
+    scene.add(lbl);
+  });
+
+  // faint meridians, purely to read as a sphere from any angle
+  const meridianCount = 6;
+  for (let m = 0; m < meridianCount; m++) {
+    const az = (m / meridianCount) * Math.PI * 2;
+    const pts = [];
+    for (let i = 0; i <= 48; i++) {
+      const phi = (i / 48) * Math.PI;
+      const r = R * Math.sin(phi);
+      pts.push(new THREE.Vector3(r * Math.cos(az), R * Math.cos(phi), r * Math.sin(az)));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, opacity: CONFIG.sphere.meridianOpacity });
+    scene.add(new THREE.Line(geo, mat));
+  }
+
+  // Historical-event rings: same "true latitude of the sphere" construction as the
+  // 25-year grid, drawn at their exact (non-round) year and titled.
+  CONFIG.events.forEach(evt => buildEventRing(evt));
+}
+
+function hexColor(n) { return '#' + n.toString(16).padStart(6, '0'); }
+
+/* Renders `text` onto a canvas once, then bends a strip of quads along the
+   ring's own circle (same y / radius as the ring line) so the title is
+   physically ATTACHED to — and follows the curvature of — that latitude on
+   the sphere, rather than floating as a flat camera-facing sprite. */
+function buildCurvedRingLabel(text, y, radius, color, worldHeight, centerAngle) {
+  const renderFontSize = 64; // fixed canvas resolution, independent of final world size
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = `bold ${renderFontSize}px Arial`;
+  const textW = Math.ceil(ctx.measureText(text).width) + 24;
+  canvas.width = textW; canvas.height = Math.ceil(renderFontSize * 3.4);
+  ctx.font = `bold ${renderFontSize}px Arial`;
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 16;
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  ctx.strokeText(text, 12, canvas.height / 2);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 12, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+
+  const worldWidth = worldHeight * (canvas.width / canvas.height);
+  const arcSpan = worldWidth / radius; // radians of the ring this title occupies
+  const segments = 48;
+
+  const positions = [], uvs = [];
+  for (let i = 0; i <= segments; i++) {
+    const u = i / segments;
+    const angle = centerAngle - arcSpan / 2 + u * arcSpan;
+    const rx = Math.cos(angle) * radius, rz = Math.sin(angle) * radius;
+    positions.push(rx, y + worldHeight / 2, rz); uvs.push(u, 1); // top edge, follows the ring
+    positions.push(rx, y - worldHeight / 2, rz); uvs.push(u, 0); // bottom edge, follows the ring
+  }
+  const indices = [];
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    indices.push(a, b, c, b, d, c);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setIndex(indices);
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+  return new THREE.Mesh(geo, mat);
+}
+
+function buildEventRing(evt) {
+  const R = CONFIG.sphere.radius;
+  const y = yScale(evt.year);
+  const rad = Math.sqrt(Math.max(0, R * R - y * y));
+
+  const pts = [];
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * rad, y, Math.sin(a) * rad));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  scene.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: evt.color, transparent: true, opacity: evt.opacity })));
+
+  const text = `${evt.year} · ${evt.title}`;
+  // Two copies, on opposite sides of the ring, so the title reads no matter
+  // which way the sphere is currently rotated.
+  [0, Math.PI].forEach(angle => {
+    scene.add(buildCurvedRingLabel(text, y, rad + 2, hexColor(evt.color), evt.labelSize, angle));
+  });
+}
+
+function buildYAxis() {
+  const { axisOffset } = CONFIG.timeline;
+  const topY = yScale(CONFIG.timeline.yearRange[0]);
+  const botY = yScale(CONFIG.timeline.yearRange[1]);
+  const axisGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(axisOffset, topY + 20, 0),
+    new THREE.Vector3(axisOffset, botY - 20, 0)
+  ]);
+  scene.add(new THREE.Line(axisGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 })));
+
+  CONFIG.tickYears.forEach(year => {
+    const y = yScale(year);
+    const tickGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(axisOffset - 8, y, 0), new THREE.Vector3(axisOffset + 8, y, 0)
+    ]);
+    scene.add(new THREE.Line(tickGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 })));
+  });
+}
+
+/* ── City nodes ── */
+function buildCities(sizeScale, popScale) {
+  NODES_DATA.filter(d => isCityType(d.type)).forEach(d => {
+    nodeIndex[d.name] = d;
+    const r = sizeScale(+d.value || 2);
+
+    const group = new THREE.Group();
+    group.position.set(d.posX,d.posY, d.posZ);
+    scene.add(group);
+    cityGroups[d.name] = group;
+    cityAnim.push({ name: d.name, group, target: 0 });   // Y pull state, rest = 0
+
+    // Persistent marker — always visible tier
+    const mesh = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(r, 0),
+      new THREE.MeshStandardMaterial({ color: CONFIG.node.cityColor, emissive: CONFIG.node.cityColor, emissiveIntensity: 0.25, transparent: true, opacity: 1 })
+    );
+    mesh.userData = { name: d.name };
+    group.add(mesh);
+    pickables.push(mesh); persistentDimmables.push({ mesh, name: d.name });
+
+    if (d.population) {
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(popScale(d.population), 16, 12),
+        new THREE.MeshBasicMaterial({ color: CONFIG.bubbles.color, transparent: true, opacity: CONFIG.bubbles.opacity, depthWrite: true })
+      );
+      group.add(halo); // decorative, not part of the dimming logic
+    }
+
+    const lbl = makeTextSprite(d.name, '#ffffff', 30);
+    lbl.position.set(0, r + 16, 0);
+    lbl.userData = { name: d.name };   // BUG FIX: this was missing, so clicking the
+                                        // label sent `undefined` into selectNode() and
+                                        // crashed on "d.type — d is undefined"
+    group.add(lbl);
+    pickables.push(lbl); persistentDimmables.push({ mesh: lbl, name: d.name });
+  });
+}
+
+/* ── Artist nodes: junction sphere = persistent tier; S-curve lifeline,
+   birth/death markers and year labels = detail tier (dim until selected) ── */
+function buildArtists() {
+  const { birthSize, deathSize, lifelineRadius, sCurveOffset, junctionRadius, artistColor } = CONFIG.node;
+
+  NODES_DATA.filter(d => d.type === 'artist').forEach(d => {
+    nodeIndex[d.name] = d;
+    const yBirth = yScale(d.birthYear), yDeath = yScale(d.deathYear);
+
+    const group = new THREE.Group();
+    group.position.set(d.posX, 0, d.posZ);
+    scene.add(group);
+    artistGroups[d.name] = group;
+
+    // Elongated vertical S-curve between birth and death
+    const dy = yDeath - yBirth;
+    const p0 = new THREE.Vector3(0, yBirth, 0);
+    const p1 = new THREE.Vector3(sCurveOffset, yBirth + dy * 0.33, 0);
+    const p2 = new THREE.Vector3(-sCurveOffset, yBirth + dy * 0.67, 0);
+    const p3 = new THREE.Vector3(0, yDeath, 0);
+    const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
+    const midLocal = curve.getPoint(0.5);
+    d.midLocal = { x: midLocal.x, y: midLocal.y, z: midLocal.z };
+    d.midY = midLocal.y;
+
+    const tubeGeo = new THREE.TubeGeometry(curve, 48, lifelineRadius, 6, false);
+    const tubeMat = new THREE.MeshBasicMaterial({ color: artistColor, transparent: true, opacity: 1 });
+    const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+    tubeMesh.userData = { name: d.name };
+    group.add(tubeMesh);
+    pickables.push(tubeMesh); detailDimmables.push({ mesh: tubeMesh, name: d.name });
+
+    // Birth / death markers
+    const birthMesh = new THREE.Mesh(
+      new THREE.OctahedronGeometry(birthSize, 0),
+      new THREE.MeshStandardMaterial({ color: artistColor, emissive: artistColor, emissiveIntensity: 0.3, transparent: true, opacity: 1 })
+    );
+    birthMesh.position.copy(p0);
+    birthMesh.userData = { name: d.name };
+    group.add(birthMesh);
+    pickables.push(birthMesh); detailDimmables.push({ mesh: birthMesh, name: d.name });
+
+    const deathMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(deathSize, deathSize, deathSize),
+      new THREE.MeshStandardMaterial({ color: artistColor, emissive: artistColor, emissiveIntensity: 0.3, transparent: true, opacity: 1 })
+    );
+    deathMesh.position.copy(p3);
+    deathMesh.userData = { name: d.name };
+    group.add(deathMesh);
+    pickables.push(deathMesh); detailDimmables.push({ mesh: deathMesh, name: d.name });
+
+    // Persistent marker for the artist: small semi-transparent junction sphere,
+    // mid-lifeline. Always visible (subject only to connected/non-connected dimming),
+    // and this exact point is where city links attach (see junctionWorldPos()).
+    const junction = new THREE.Mesh(
+      new THREE.SphereGeometry(junctionRadius, 14, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false })
+    );
+    junction.position.copy(midLocal);
+    junction.userData = { name: d.name };
+    group.add(junction);
+    pickables.push(junction); persistentDimmables.push({ mesh: junction, name: d.name });
+
+    // YEAR LABELS — birth year ABOVE the birth node, death year BELOW the death node
+    // (y grows "upward"/toward earlier dates in this scene, so birth needs +offset,
+    // death needs -offset).
+    const birthLbl = makeTextSprite(String(d.birthYear), '#ffe0e0', 30);
+    birthLbl.position.set(p0.x, p0.y + 18, p0.z);   // ABOVE birth node
+    group.add(birthLbl);
+    detailDimmables.push({ mesh: birthLbl, name: d.name });
+
+    const deathLbl = makeTextSprite(String(d.deathYear), '#ffe0e0', 30);
+    deathLbl.position.set(p3.x, p3.y - 18, p3.z);   // BELOW death node
+    group.add(deathLbl);
+    detailDimmables.push({ mesh: deathLbl, name: d.name });
+
+    // Name label — persistent tier (visible by default, part of the "circles and
+    // their names" default view). Rotates 90° to run along the lifeline on select.
+    const nameLbl = makeTextSprite(d.name, '#ffffff', 28);
+    nameLbl.position.set(p0.x-10, p0.y -50, p0.z);
+    nameLbl.userData = { name: d.name };   // BUG FIX: same missing userData as the city label
+    group.add(nameLbl);
+    pickables.push(nameLbl); persistentDimmables.push({ mesh: nameLbl, name: d.name });
+
+    artistAnim.push({
+      name: d.name, group, restX: d.posX, target: d.posX, baseX: d.posX,
+      phase: Math.random() * Math.PI * 2,     // desyncs the floating motion per artist
+      nameLbl, rotTarget: 0
+    });
+  });
+}
+
+function buildNodes() {
+  const { citySizeRange } = CONFIG.node;
+  const cityValues = NODES_DATA.filter(n => isCityType(n.type)).map(n => +n.value || 2);
+  const sizeScale = d3.scaleLinear().domain([d3.min(cityValues), d3.max(cityValues)]).range(citySizeRange).clamp(true);
+  const popScale = d3.scaleSqrt().domain([0, 30000]).range([0, 60]);
+  buildCities(sizeScale, popScale);
+  buildArtists();
+}
+
+/* ── Links: recomputed every frame since either endpoint can be mid-pull/floating ── */
+function junctionWorldPos(name) {
+  const d = nodeIndex[name];
+  if (isCityType(d.type)) {
+    const g = cityGroups[name];
+    return new THREE.Vector3(g.position.x, g.position.y, g.position.z);
+  }
+  const g = artistGroups[name];
+  return new THREE.Vector3(g.position.x + d.midLocal.x, g.position.y + d.midLocal.y, g.position.z + d.midLocal.z);
+}
+
+function buildLinks() {
+  LINKS_DATA.forEach(l => {
+    if (!nodeIndex[l.source] || !nodeIndex[l.target]) return;
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const mat = new THREE.LineBasicMaterial({ color: CONFIG.links.color, transparent: true, opacity: CONFIG.effects.deselectedLink });
+    const mesh = new THREE.Line(geo, mat);
+    scene.add(mesh);
+    linkEntries.push({ mesh, source: l.source, target: l.target });
+  });
+}
+
+function updateLinks() {
+  const { curveOffset, segments } = CONFIG.links;
+  linkEntries.forEach(o => {
+    const p0 = junctionWorldPos(o.source);
+    const p2 = junctionWorldPos(o.target);
+    const mid = p0.clone().lerp(p2, 0.5);
+    const dir = p2.clone().sub(p0).normalize();
+    let perp = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
+    if (perp.lengthSq() < 0.0001) perp = new THREE.Vector3(1, 0, 0);
+    perp.normalize().multiplyScalar(curveOffset);
+    const p1 = mid.add(perp);
+    const curve = new THREE.QuadraticBezierCurve3(p0, p1, p2);
+    o.mesh.geometry.setFromPoints(curve.getPoints(segments));
+  });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SELECTION + OPACITY STATES + "FORCE DIAGRAM" PULLS
+   ═══════════════════════════════════════════════════════════════ */
+function getConnected(name) {
+  const s = new Set([name]);
+  LINKS_DATA.forEach(l => {
+    if (l.source === name) s.add(l.target);
+    if (l.target === name) s.add(l.source);
+  });
+  return s;
+}
+function directLinks(name) {
+  return LINKS_DATA.filter(l => l.source === name || l.target === name)
+    .map(l => (l.source === name ? l.target : l.source));
+}
+
+/* Applies CONFIG.effects to every tier, given the current selection (or null).
+   This single function is the source of truth for both the DEFAULT/DESELECTED
+   look and the SELECTED look — see the CONFIG.effects comments above. */
+function applyOpacityState() {
+  const conn = currentSelection ? getConnected(currentSelection) : null;   // null => default state
+
+  persistentDimmables.forEach(o => {
+    // IDLE (conn === null): persistentIdle — visible, but with headroom to brighten on select
+    // CONNECTED (this node is linked to the current selection, or is it): full strength — the highlight
+    // UNRELATED (something else is selected, no link here): dims further
+    o.mesh.material.opacity = !conn
+      ? CONFIG.effects.persistentIdle
+      : (conn.has(o.name) ? CONFIG.effects.selected : CONFIG.effects.deselectedNode);
+  });
+
+  detailDimmables.forEach(o => {
+    // DEFAULT (conn === null): always CONFIG.effects.detailDim (hidden lifeline/birth/death/years)
+    // SELECTED: full only for the node that's part of the active selection
+    o.mesh.material.opacity = (conn && conn.has(o.name)) ? CONFIG.effects.selected : CONFIG.effects.detailDim;
+  });
+
+  linkEntries.forEach(o => {
+    const active = conn && (o.source === currentSelection || o.target === currentSelection);
+    o.mesh.material.opacity = active ? CONFIG.effects.selected : CONFIG.effects.deselectedLink;
+  });
+
+  // name-rotation target: only the exact selected artist rotates its label
+  artistAnim.forEach(o => { o.rotTarget = (currentSelection === o.name) ? CONFIG.nameRotate.angle : 0; });
+}
+
+function resetPullTargets() {
+  cityAnim.forEach(o => { o.target = 0; });
+  artistAnim.forEach(o => { o.target = o.restX; });
+}
+
+/* SELECTED-state force pull: nudges directly-linked partners toward the
+   selected node, like a lightweight force-directed attraction. Everything
+   else (incl. non-connected partners) is pulled back to its rest position
+   by resetPullTargets(). This is re-evaluated on every click.
+
+   NOTE on why this looked "broken" before: the pull was scaled purely off
+   the raw x/z distance already produced by the force layout. Because that
+   layout is free to place a linked node mostly ABOVE/BELOW (in z) rather
+   than LEFT/RIGHT (in x) of its city, the x-component of that distance can
+   end up tiny even though the nodes are clearly linked — so an X-only pull
+   sometimes had almost nothing to work with. Fixed by guaranteeing a
+   minimum pull magnitude (CONFIG.pull.minPull) in the correct direction,
+   so the motion is always clearly visible regardless of layout geometry. */
+function applyPulls(name) {
+  resetPullTargets();
+  const d = nodeIndex[name];
+  const partners = directLinks(name);
+  const { cityYFactor, artistXFactor, minPull } = CONFIG.pull;
+
+  if (d.type === 'artist') {
+    const raw = d.midY * cityYFactor;
+    const targetY = Math.sign(raw || 1) * Math.max(Math.abs(raw), minPull);
+    partners.forEach(p => {
+      const a = cityAnim.find(o => o.name === p);
+      if (a) a.target = targetY;
+    });
+  } else {
+    const cityX = cityGroups[name].position.x;
+    partners.forEach(p => {
+      const a = artistAnim.find(o => o.name === p);
+      if (!a) return;
+      const raw = (cityX - a.restX) * artistXFactor;
+      const mag = Math.sign(raw || 1) * Math.max(Math.abs(raw), minPull);
+      a.target = a.restX + mag;
+    });
+  }
+}
+
+// Guarded: any pickable object without a valid, known node name (e.g. a raycast
+// artifact, or a future mesh added to `pickables` without userData.name set)
+// falls back to clearing the selection instead of crashing on `d.type`.
+function selectNode(name) {
+  if (!name || !nodeIndex[name]) { clearSelection(); return; }
+  currentSelection = name;
+  applyOpacityState();
+  applyPulls(name);
+  showInfoOverlay(nodeIndex[name]);
+}
+
+function clearSelection() {
+  currentSelection = null;
+  applyOpacityState();
+  resetPullTargets();
+  hideInfoOverlay();
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   FLOATING INFO OVERLAY
+   ═══════════════════════════════════════════════════════════════ */
+const infoImageEl = document.getElementById('infoImage');
+const infoTextEl  = document.getElementById('infoText');
+const infoConnEl  = document.getElementById('infoConnector');
+const infoNameEl  = document.getElementById('infoName');
+const infoMetaEl  = document.getElementById('infoMeta');
+const infoLinkEl  = document.getElementById('infoLink');
+
+function showInfoOverlay(d) {
+  infoImageEl.innerHTML = d.image ? `<img src="${d.image}" alt="${d.name}">` : d.name.charAt(0);
+  infoNameEl.textContent = d.name;
+  const deathTxt = d.death ? ' · ' + d.death : '';
+  infoMetaEl.innerHTML = `${d.type} · ${d.birth}${deathTxt}<br><em>${d["main discipline"] || ''}</em>`;
+  infoLinkEl.href = d.link || '#';
+  infoImageEl.classList.add('visible');
+  infoTextEl.classList.add('visible');
+  infoConnEl.classList.add('visible');
+}
+function hideInfoOverlay() {
+  infoImageEl.classList.remove('visible');
+  infoTextEl.classList.remove('visible');
+  infoConnEl.classList.remove('visible');
+}
+document.getElementById('infoClose').addEventListener('click', e => { e.stopPropagation(); clearSelection(); });
+
+function anchorWorldPos(name) {
+  const d = nodeIndex[name];
+  if (isCityType(d.type)) {
+    const g = cityGroups[name];
+    return new THREE.Vector3(g.position.x, g.position.y, g.position.z);
+  }
+  return junctionWorldPos(name);
+}
+
+function updateInfoOverlayPosition() {
+  if (!currentSelection) return;
+  const world = anchorWorldPos(currentSelection);
+  const v = world.clone().project(camera);
+  const sx = (v.x * 0.5 + 0.5) * window.innerWidth;
+  const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
+
+  infoImageEl.style.left = (sx+ 36) + 'px';
+  infoImageEl.style.top  = (sy - 36) + 'px';
+
+  let tx = sx + 146, ty = sy - 34;
+  tx = Math.min(tx, window.innerWidth - 222);
+  ty = Math.max(8, Math.min(ty, window.innerHeight - 140));
+  infoTextEl.style.left = tx + 'px';
+  infoTextEl.style.top  = ty + 'px';
+
+  const dx = tx - sx, dy = (ty + 20) - sy;
+  const dist = Math.hypot(dx, dy);
+  infoConnEl.style.width = dist + 'px';
+  infoConnEl.style.left = sx + 'px';
+  infoConnEl.style.top = sy + 'px';
+  infoConnEl.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   CAMERA
+   ═══════════════════════════════════════════════════════════════ */
+function updateCamera() {
+  camPhi = Math.max(0.12, Math.min(Math.PI - 0.12, camPhi));
+  camDistance = Math.max(CONFIG.camera.min, Math.min(CONFIG.camera.max, camDistance));
+  camera.position.set(
+    camDistance * Math.sin(camPhi) * Math.sin(camTheta),
+    camDistance * Math.cos(camPhi),
+    camDistance * Math.sin(camPhi) * Math.cos(camTheta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+function onPointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return;
+  isDragging = true; downX = lastX = e.clientX; downY = lastY = e.clientY;
+  document.getElementById('threeWrap').classList.add('dragging');
+}
+function onPointerMove(e) {
+  if (!isDragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  camTheta -= dx * 0.006;
+  camPhi -= dy * 0.006;
+  lastX = e.clientX; lastY = e.clientY;
+  updateCamera();
+}
+function onPointerUp(e) {
+  isDragging = false;
+  document.getElementById('threeWrap').classList.remove('dragging');
+  const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+  if (moved < 4) doRaycast(e);
+}
+function onWheel(e) {
+  e.preventDefault();
+  camDistance += e.deltaY * 0.5;
+  updateCamera();
+}
+
+function doRaycast(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouseNDC, camera);
+  raycaster.camera = camera; // needed for Sprite raycasting on some three.js builds
+  const hits = raycaster.intersectObjects(pickables, false);
+  if (hits.length) selectNode(hits[0].object.userData.name);
+  else clearSelection();
+}
+
+document.getElementById('zoomIn').addEventListener('click', () => { camDistance -= CONFIG.camera.zoomStep; updateCamera(); });
+document.getElementById('zoomOut').addEventListener('click', () => { camDistance += CONFIG.camera.zoomStep; updateCamera(); });
+document.getElementById('resetView').addEventListener('click', () => {
+  camDistance = CONFIG.camera.distance; camTheta = CONFIG.camera.theta; camPhi = CONFIG.camera.phi;
+  updateCamera(); clearSelection();
+});
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LEGEND PANEL — draggable + collapsible
+   ═══════════════════════════════════════════════════════════════ */
+function makePanelDraggable(panelId, headerId) {
+  const panel = document.getElementById(panelId), header = document.getElementById(headerId);
+  let dragging = false, ox = 0, oy = 0, sl = 0, st = 0;
+  header.addEventListener('mousedown', e => {
+    if (e.target.closest('.panel-btn')) return;
+    dragging = true; ox = e.clientX; oy = e.clientY;
+    const r = panel.getBoundingClientRect(); sl = r.left; st = r.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    panel.style.left = (sl + (e.clientX - ox)) + 'px';
+    panel.style.top  = (st + (e.clientY - oy)) + 'px';
+    panel.style.right = 'auto'; panel.style.bottom = 'auto';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+}
+function makeCollapsible(toggleId, bodyId) {
+  const btn = document.getElementById(toggleId), body = document.getElementById(bodyId);
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const collapsed = body.style.display === 'none';
+    body.style.display = collapsed ? '' : 'none';
+    btn.textContent = collapsed ? '−' : '+';
+  });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT + ANIMATION LOOP
+   ═══════════════════════════════════════════════════════════════ */
+function initThree() {
+  const wrap = document.getElementById('threeWrap');
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 6000);
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  wrap.appendChild(renderer.domElement);
+  updateCamera();
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.55);
+  dl.position.set(300, 500, 400);
+  scene.add(dl);
+
+  computeXZLayout();
+  buildTimeGrid();
+  buildYAxis();
+  buildNodes();
+  buildLinks();
+  updateLinks();
+  applyOpacityState();   // <- sets the DEFAULT/DESELECTED look at load (nothing selected yet)
+
+  wrap.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+  wrap.addEventListener('touchstart', e => onPointerDown(e.touches[0]), { passive: true });
+  window.addEventListener('touchmove', e => onPointerMove(e.touches[0]), { passive: true });
+  window.addEventListener('touchend', e => onPointerUp(e.changedTouches[0]));
+  wrap.addEventListener('wheel', onWheel, { passive: false });
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const { ease } = CONFIG.pull;
+  const { ampY, ampRotZ, speed } = CONFIG.float;
+  const rotEase = CONFIG.nameRotate.ease;
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    const t = performance.now() * 0.001;
+
+    // Cities: ease toward their Y pull target (0 at rest / default state)
+    cityAnim.forEach(o => { o.group.position.y += (o.target - o.group.position.y) * ease; });
+
+    // Artists: ease X toward pull target (baseX), then layer a gentle idle
+    // "floating" bob (Y position + slight Z tilt) on top — always on, both
+    // selected and deselected.
+    artistAnim.forEach(o => {
+      o.baseX += (o.target - o.baseX) * ease;
+      o.group.position.x = o.baseX;
+      o.group.position.y = Math.sin(t * speed + o.phase) * ampY;
+      o.group.rotation.z = Math.sin(t * speed * 0.6 + o.phase) * ampRotZ;
+
+      // Name label rotates 90° along the lifeline only while THIS artist is selected
+      o.nameLbl.material.rotation += (o.rotTarget - o.nameLbl.material.rotation) * rotEase;
+    });
+
+    updateLinks();
+    updateInfoOverlayPosition();
+    renderer.render(scene, camera);
+  })();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initThree();
+  makePanelDraggable('legendPanel', 'legendHeader');
+  makeCollapsible('legendToggle', 'legendBody');
+});
+
+</script>
+</body>
+</html>
