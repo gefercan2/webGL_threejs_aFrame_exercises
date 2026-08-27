@@ -136,7 +136,7 @@ html, body {
 </head>
 <body>
 
-<div class="dash-title">Venice · Rome — Renaissance Sphere
+<div class="dash-title"> Italian Renaissance Sphere
   <div class="dash-sub">x–z = network &nbsp;·&nbsp; y = time, 25-year rings (1492 at the equator)</div>
 </div>
 <div class="hint">drag to rotate · scroll to zoom · click a node</div>
@@ -509,31 +509,29 @@ value: "0.5",image:"https://upload.wikimedia.org/wikipedia/commons/b/b2/Zucchi%2
     link:"https://en.wikipedia.org/wiki/Republic_of_Venice",
     image:"https://upload.wikimedia.org/wikipedia/commons/a/af/Vaporetti_Venice_Lagoon.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
     population:30000 },
-  { name:"ROME", type:"city", birth:"Seat of the Pope", death:"(Lazio)",image:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Trevi_Fountain%2C_Rome%2C_Italy_2_-_May_2007.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original","main discipline":"Papal Estates", value:"6",link:"https://en.wikipedia.org/wiki/Papal_States",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_the_Papal_States_%281825-1870%29.svg/320px-Flag_of_the_Papal_States_%281825-1870%29.svg.png",
-    population:10000 },
+  { name:"ROME", type:"city", birth:"Seat of the Pope", death:"(Lazio)",image:"https://upload.wikimedia.org/wikipedia/commons/7/7e/Trevi_Fountain%2C_Rome%2C_Italy_2_-_May_2007.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original","main discipline":"Papal Estates", value:"6",link:"https://en.wikipedia.org/wiki/Papal_States",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_the_Papal_States_%281825-1870%29.svg/320px-Flag_of_the_Papal_States_%281825-1870%29.svg.png", population:35000 },
   { name:"NAPLES", type:"city", birth:"Kingdom (Spanish Crown)", death:"Campania",
-    "main discipline":"Sicilia, Kingdom of Naples", value:"5",
-    link:"https://en.wikipedia.org/wiki/Kingdom_of_Naples" },
+    "main discipline":"Sicilia, Kingdom of Naples", value:"5",link:"https://en.wikipedia.org/wiki/Kingdom_of_Naples", population:50000 },
   { name:"FLORENCE", type:"city state", birth:"Medici dynasty", death:"(Tuscany)",image:"https://upload.wikimedia.org/wikipedia/commons/d/d2/FirenzeDec092023_01.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
     "main discipline":"Republic of Florence", value:"4",
-    link:"https://en.wikipedia.org/wiki/Republic_of_Florence" },
+    link:"https://en.wikipedia.org/wiki/Republic_of_Florence", population:20000},
   { name:"MANTUA", type:"city", birth:"House of Gonzaga", death:"",
     "main discipline":"Duchy of Mantua", value:"3",
-    link:"https://en.wikipedia.org/wiki/Duchy_of_Mantua" },
+    link:"https://en.wikipedia.org/wiki/Duchy_of_Mantua" , population:50000},
   { name:"MILAN", type:"city", birth:"city state", death:"(Lombardia)",
     "main discipline":"Duchy of Milan", value:"3",
-    link:"https://en.wikipedia.org/wiki/Duchy_of_Milan" },
+    link:"https://en.wikipedia.org/wiki/Duchy_of_Milan" , population:65000},
   { name:"PADUA", type:"city", birth:"city state", death:"",
     "main discipline":"city of Padova", value:"2",
-    link:"https://en.wikipedia.org/wiki/Padua" },
+    link:"https://en.wikipedia.org/wiki/Padua" , population:15000},
   { name:"SIENA", type:"city state", birth:"citizen-based", death:"(Tuscany)",
     "main discipline":"Republic of Siena", value:"2",
-    link:"https://en.wikipedia.org/wiki/Republic_of_Siena" },
+    link:"https://en.wikipedia.org/wiki/Republic_of_Siena", population:12000 },
   { name:"URBINO", type:"city", birth:"city state", death:"House of Montefeltro",
     "main discipline":"Duchy of Urbino", value:"2",
-    link:"https://en.wikipedia.org/wiki/Duchy_of_Urbino" },
+    link:"https://en.wikipedia.org/wiki/Duchy_of_Urbino", population:10000 },
   { name: "PERUGIA",type: "city", birth: "", death: "(Umbria)", "main discipline": "",
-		link:"https://en.wikipedia.org/wiki/Perugia",value: "2",}
+		link:"https://en.wikipedia.org/wiki/Perugia",value: "2", population:15000}
 ];
 
 const LINKS_DATA = [
@@ -643,7 +641,7 @@ const CONFIG = {
 
   // ── THE SPHERE ITSELF (wireframe grid rings + meridians + equator) ──
   sphere: {
-    radius:          350,      // sphere size, in world units — everything else scales off this
+    radius:          400,      // sphere size, in world units — everything else scales off this
     gridOpacity:     0.22,     // opacity of the plain 25-year latitude rings (thin blue circles)
     meridianOpacity: 0.10,     // opacity of the faint vertical "orange-slice" lines (pure decoration)
     equatorColor:    0xffcc55, // color used for the 1492 ring (also read by CONFIG.events below)
@@ -658,8 +656,8 @@ const CONFIG = {
     deathSize:       8,       // side length of the death-year cube marker
     lifelineRadius:  0.9,      // thickness of the S-curve lifeline tube
     sCurveOffset:    10,       // how far the lifeline bows left/right — bigger = more pronounced "S"
-    junctionRadius:  7,        // size of the small always-visible circle at the mid-life point
-    citySizeRange:   [10, 14]  // [min,max] icosahedron radius, scaled from each city's `value` field
+    junctionRadius:  5,        // size of the small always-visible circle at the mid-life point
+    citySizeRange:   [8, 9]  // [min,max] icosahedron radius, scaled from each city's `value` field
   },
 
   // ── 2D FORCE LAYOUT (produces the x/z network positions — see computeXZLayout) ──
@@ -724,7 +722,7 @@ const CONFIG = {
   links: {
     curveOffset: 62,       // how far the S-curved link bows out sideways from a straight line
     color:       0xffffff, // link line color
-    segments:    24         // smoothness of the curve (more = smoother, costs a little perf)
+    segments:    14         // smoothness of the curve (more = smoother, costs a little perf)
   },
 
   // ── HISTORICAL HIGHLIGHT RINGS ──
@@ -742,7 +740,7 @@ const CONFIG = {
   ],
 
   // ── POPULATION HALOS (translucent spheres behind Venice/Rome) ──
-  bubbles: { color: 0xffc850, opacity: 0.07 },
+  bubbles: { color: 0xffc850, opacity: 0.2 },
 
   /* ─────────────────────────────────────────────────────────────
      OPACITY STATES — the three "modes" every node lives in.
@@ -770,9 +768,9 @@ const CONFIG = {
      minPull guarantees the motion is always visible (see applyPulls() note
      for why a pure distance-proportional pull could end up near-zero). */
   pull: {
-    cityYFactor:   0.6,   // how much of an artist's mid-life Y a linked city eases toward (0–1)
-    artistXFactor: 0.55,  // how much of a city's X a linked artist eases toward (0–1)
-    minPull:       55,    // minimum pull distance (world units), regardless of the above factors
+    cityYFactor:   0.95,   // how much of an artist's mid-life Y a linked city eases toward (0–1)
+    artistXFactor: 0.05,  // how much of a city's X a linked artist eases toward (0–1)
+    minPull:       0.05,    // minimum pull distance (world units), regardless of the above factors
     ease:          0.06   // per-frame easing speed toward the target (higher = snappier, lower = slower glide)
   },
 
@@ -893,7 +891,7 @@ function makeTextSprite(text, color, worldHeight) {
   const ctx = canvas.getContext('2d');
   ctx.font = `bold ${renderFontSize}px Arial`;
   const w = Math.ceil(ctx.measureText(text).width) + 28;
-  canvas.width = w; canvas.height = Math.ceil(renderFontSize * 3.5);
+  canvas.width = w; canvas.height = Math.ceil(renderFontSize * 4.1);
   ctx.font = `bold ${renderFontSize}px Arial`;
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 7;
